@@ -72,7 +72,7 @@ Then open `data/7_shortlist/<today>/_summary.md` and a job note next to it. Chec
 "$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py"
 ```
 
-A day that already succeeded is skipped; add `--force` to rerun it. Run the scripts from inside your workspace, or from anywhere with `--workspace /path/to/workspace` (or the `JOBSEARCH_HOME` environment variable). Your data stays in the workspace, never in the engine folder; `config.yaml`, `profiles/`, `resumes/`, `data/`, `.env` and `*.db` are git-ignored in case you do keep a workspace inside a clone.
+A day that already succeeded is skipped; `--force` runs it again with a new fetch (the day's earlier files are moved to `data/_replaced/` first). Run the scripts from inside your workspace, or from anywhere with `--workspace /path/to/workspace` (or the `JOBSEARCH_HOME` environment variable). Your data stays in the workspace, never in the engine folder; `config.yaml`, `profiles/`, `resumes/`, `data/`, `.env` and `*.db` are git-ignored in case you do keep a workspace inside a clone.
 
 ## Running it every day (macOS)
 
@@ -127,7 +127,7 @@ The notes, `_summary.md` and the phone notification are written from `scripts/ex
 - **Terms of service.** Fetching LinkedIn through a third-party scraper may conflict with LinkedIn's terms of service. Use it for your own job search only, and read the terms yourself. The scraper is a third-party Apify actor you rely on; if it changes or disappears, fetching breaks.
 - **Scores are model judgments, and they vary.** In a test on 100 jobs, scoring the same job twice with the same model gave the same best score for 84% of the jobs and a score within one point for 95%. Jobs near the 3/4 boundary move most. Treat the shortlist as a starting point, not a verdict, and use `replay_triage.py` before you change prompts or models: compare against a rerun of the old setup, not against old stored scores.
 - **Public data only.** Applicant counts and descriptions are whatever the public page shows; some postings are missing fields.
-- **One successful run per day, and a failed day cannot be rerun as a whole.** A day that succeeded is skipped unless you pass `--force`. If a day fails after the filter step, do not run `run_daily.py` again: dedup has already marked that day's jobs as seen, so the rerun would keep none of them. Resume with `score.py --only raw_YYYYMMDD.json` instead (see `AGENTS.md`). Making failed days resumable is on the roadmap.
+- **One successful run per day.** A day that succeeded is skipped unless you pass `--force`. A day that fails is resumed from the step it stopped at the next time `run_daily.py` runs, and a day that failed after fetching is finished automatically by the next daily run (up to 3 days back), so a temporary API outage does not lose that day's jobs.
 - **macOS only for the scheduling example.** The pipeline itself is plain Python; other schedulers work too but are not documented yet.
 
 ## Roadmap

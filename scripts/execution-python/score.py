@@ -458,10 +458,10 @@ def add_summaries(client, config, usage, selection: dict, day_dir: Path) -> None
         job["summary"] = (read_summary(md) if md and md.exists() else "") or summarize_job(client, config, usage, job)
 
 
-def mark_recommended(conn: sqlite3.Connection, picks: list[dict]) -> None:
+def mark_recommended(conn: sqlite3.Connection, picks: list[dict], run_date: str) -> None:
     conn.executemany(
         "UPDATE jobs SET recommended_date = ? WHERE job_id = ?",
-        [(date.today().isoformat(), j["jobId"]) for j in picks],
+        [(run_date, j["jobId"]) for j in picks],
     )
     conn.commit()
 
@@ -793,8 +793,10 @@ def write_shortlist(selection: dict, scored: list[dict], run_date: str, scraped_
 
 def process_filtered_file(conn, client, config, profiles, path: Path, limit: int | None, detail: bool,
                            stats_path: Path | None = None, folder_suffix: str = "",
-                           shortlist_size: int | None = None, summary_name: str = "_summary.md") -> None:
-    """folder_suffix: a suffix on the shortlist folder name (e.g. backfill -> 2026-10-05-backfill); date_recommended stays the run date."""
+                           shortlist_size: int | None = None, summary_name: str = "_summary.md",
+                           run_date: str | None = None) -> None:
+    """run_date: the day the shortlist belongs to (default today; the daily run passes it so a caught-up day goes to its own folder).
+    folder_suffix: a suffix on the shortlist folder name (e.g. backfill -> 2026-10-05-backfill); date_recommended stays the run date."""
     with path.open(encoding="utf-8") as f:
         jobs = json.load(f)
     if limit:
@@ -812,7 +814,8 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
     selection = select_shortlist(scored, shortlist_size or config["scoring"]["shortlist_size"],
                                  config["scoring"].get("shortlist_min_score", 4),
                                  config["scoring"].get("custom_min_score", 3))
-    folder_name = date.today().isoformat() + (f"-{folder_suffix}" if folder_suffix else "")
+    run_date = run_date or date.today().isoformat()
+    folder_name = run_date + (f"-{folder_suffix}" if folder_suffix else "")
     if detail:
         add_details(conn, client, config, profiles, usages["detail"], selection)
     add_summaries(client, config, usages["summary"], selection, SHORTLIST_DIR / folder_name)
@@ -821,7 +824,6 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
     SHORTLIST_DIR.mkdir(parents=True, exist_ok=True)
     with (SCORED_DIR / path.name).open("w", encoding="utf-8") as f:
         json.dump(scored, f, ensure_ascii=False, indent=2)
-    run_date = date.today().isoformat()
     m = re.search(r"(\d{4})(\d{2})(\d{2})", path.stem)
     scraped_date = "-".join(m.groups()) if m else run_date
     shortlist_path = write_shortlist(
@@ -829,7 +831,7 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
         pipeline_counts(path.name),
         query_table(path.name, scored, selection, config["apify"].get("query_names", [])),
         folder_name=folder_name, summary_name=summary_name)
-    mark_recommended(conn, selection["main"] + selection["custom"])
+    mark_recommended(conn, selection["main"] + selection["custom"], run_date)
 
     if stats_path:
         picks = selection["main"] + selection["custom"]
@@ -860,6 +862,7 @@ if __name__ == "__main__":
     parser.add_argument("--only", help="process only this file name (used by the daily run, e.g. raw_20261004.json)")
     parser.add_argument("--folder-suffix", default="", help="suffix of the shortlist folder, e.g. backfill (for backfills)")
     parser.add_argument("--shortlist-size", type=int, help="cap of the main list (overrides config; for backfills)")
+    parser.add_argument("--run-date", help="day the shortlist belongs to, YYYY-MM-DD (default: today)")
     parser.add_argument("--summary-name", default="_summary.md", help="file name of the stats file (each backfill batch uses a different one so none is overwritten)")
     args = parser.parse_args()
 
@@ -882,5 +885,5 @@ if __name__ == "__main__":
         print(f"No .json files found in {FILTERED_DIR}/. Run scripts/execution-python/filter.py first.")
     for filtered_path in files:
         process_filtered_file(conn, client, config, profiles, filtered_path, args.limit, not args.no_detail,
-                              args.stats_json, args.folder_suffix, args.shortlist_size, args.summary_name)
+                              args.stats_json, args.folder_suffix, args.shortlist_size, args.summary_name, args.run_date)
     conn.close()

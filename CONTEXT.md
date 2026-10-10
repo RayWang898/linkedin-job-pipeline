@@ -33,7 +33,7 @@ One engine codebase plus a user **workspace**. The engine (code, templates, docs
 - **Best score:** the highest triage score (0 to 5) across a job's tracks. It alone decides whether the job enters the shortlist.
 - **Shortlist:** the jobs picked on a run date. Only jobs at or above the shortlist floor are kept; the list is not padded.
 - **needs_custom:** a job type worth a customized resume because no base resume covers it well.
-- **Daily run:** one full pass of the six steps for a date. At most one successful run per day.
+- **Daily run:** one pass of the six steps for a date. At most one successful run per day. Finished steps are recorded, a failed day resumes where it stopped, and the next run finishes failed days up to 3 days back.
 - **Workspace:** the user's own folder holding `config.yaml`, `profiles/`, `resumes/`, `data/`, `jobs.db`, `.env`, `logs/`. It contains no engine code. The same engine can run against any workspace.
 - **Engine:** the code, example templates and docs in this repository.
 

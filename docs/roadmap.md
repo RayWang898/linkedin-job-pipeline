@@ -34,7 +34,7 @@ Do these in order. Tasks 1 and 2 matter most: without them the engine cannot run
 | 14 | `init` command that creates a workspace and copies the examples | later | |
 | 15 | `--dry-run` and machine-readable output on the main commands | later | Safer and easier for agents |
 | 16 | Fixture data and basic tests so the pipeline can run end to end without API cost | later | Also protects against regressions |
-| 16a | Make a failed day resumable: record each step's completion for the day, and on a rerun skip finished steps and never overwrite the day's filtered file with an empty one | later | Found while testing: a full rerun after a failure at step 5-6 keeps 0 jobs because dedup already marked them seen (inherited from the original engine). Workaround is documented in `AGENTS.md` |
+| 16a | Make a failed day resumable: record each step's completion for the day, and on a rerun skip finished steps and never overwrite the day's filtered file with an empty one | done | `daily_runs.steps_done`; resume on rerun; the next run finishes failed days up to 3 days back; dedup commits only after its file is written; `--force` archives the day's files to `data/_replaced/`; `score.py --run-date`. Tested with injected failures (scratch harness, not yet in the repo; folds into task 16) |
 
 ## P3: Test with a real outsider, then release
 

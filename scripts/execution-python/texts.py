@@ -79,6 +79,7 @@ DEFAULTS = {
     "notify_gap": "{n} days since last success",
     "notify_tracks_separator": " / ",
     "notify_separator": " | ",
+    "notify_catch_up": "Caught up {date}: {message}",
     "notify_failed": "Daily run failed: {step} ({detail})",
     "notify_unexpected": "Daily run hit an unexpected error: {error}",
 }

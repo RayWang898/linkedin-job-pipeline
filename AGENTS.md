@@ -38,9 +38,9 @@ All of them run with the engine's Python, for example `"$ENGINE/venv/bin/python"
 
 | Command | What it does | Spends money |
 | --- | --- | --- |
-| `run_daily.py [--force] [--no-notify] [--max-jobs N] [--db FILE]` | The whole pipeline for today. A day that already succeeded is skipped unless `--force`. Reads keys from the workspace `.env` | yes |
+| `run_daily.py [--force] [--no-catch-up] [--no-notify] [--max-jobs N] [--db FILE]` | The whole pipeline for today. A day that already succeeded is skipped; a day that failed is resumed; earlier failed days (up to 3 back) are finished first. `--force` runs today again with a new fetch after moving today's earlier files to `data/_replaced/`. Reads keys from the workspace `.env` | yes |
 | `fetch.py [--max-jobs N] [--from-samples]` | Step 1 and 2 only | yes (unless `--from-samples`) |
-| `dedup.py`, `filter.py`, `score.py` | Steps 3, 4 and 5-6 on today's files (`--only raw_YYYYMMDD.json`, `--db FILE`). `score.py` also has `--limit N` and `--no-detail` | `score.py` only |
+| `dedup.py`, `filter.py`, `score.py` | Steps 3, 4 and 5-6 on today's files (`--only raw_YYYYMMDD.json`, `--db FILE`). `score.py` also has `--limit N`, `--no-detail` and `--run-date YYYY-MM-DD` | `score.py` only |
 | `calibrate.py [YYYYMMDD] [--margin N]` | Lists jobs that were nearly excluded or nearly shortlisted | no |
 | `replay_triage.py --file raw_<name>.json` | Rescores a sample of already-scored jobs to measure agreement; writes to `feedback/` | yes |
 | `backfill.py [--days N] [--dry-run]` | One-off fetch of the past N days into its own shortlist folder | yes (`--dry-run` does not) |
@@ -77,11 +77,9 @@ Start from evidence, not from guesses.
 - `config.yaml ... tracks` or `track id ...` messages: fix the `tracks:` list as the message says. `Missing profile for track X`: the file named in `profile:` is not in `profiles/`.
 - `visa_skip_locations, exclude_visa_patterns moved under visa:`: an older config; move them under a `visa:` section as `skip_locations` and `exclude_patterns`.
 - `prompts.yaml: unknown names` or `texts.yaml: unknown names`: a key is misspelled; the message lists the valid ones.
-- **A day failed after retries (the user got a failure notification): do not just run `run_daily.py` again.** Step 3 (dedup) records every fetched job as "seen" in `jobs.db` as soon as it runs, so a second full run of the same day finds all of them already seen, keeps 0 jobs and overwrites that day's `data/3_deduped` and `data/4_filtered` files with empty ones. Find the failed step in `logs/<date>.log` and resume from it, with the user's approval of the cost:
-  - failed in step 5-6 (scoring and output): the filtered file is intact, so run `score.py --only raw_<YYYYMMDD>.json` (results already scored are cached and cost nothing);
-  - failed in step 1-2 (fetch or slim): nothing was recorded as seen yet, so running `run_daily.py` again is fine;
-  - failed in step 3 or 4: check `data/3_deduped/` and `data/4_filtered/` for that day. If they were already overwritten with empty files, `data/2_slim/raw_<YYYYMMDD>.json` still has the fetched jobs; ask the user before touching `jobs.db`, because those jobs must be removed from the seen list for dedup to keep them again.
-  This is a known weakness of the daily run (it cannot yet resume a failed day); `docs/roadmap.md` lists it.
+- **A day failed after retries (the user got a failure notification).** Running `run_daily.py` again is safe and does the right thing: the daily run records which steps finished for the day (`steps_done` in the `daily_runs` table) and a rerun resumes after the last finished step, without fetching again and without paying again for jobs already scored. If nobody reruns it, the next daily run first finishes any of the last 3 days that failed after fetching ("Catching up ..." in the log, shortlist in that day's own folder) and then does today. To resume without a full run: `score.py --only raw_<YYYYMMDD>.json --run-date <YYYY-MM-DD>`.
+  - `Failed: resume: ... is recorded as done but data/... is missing` means a file of an unfinished day was deleted. Do not delete `jobs.db` rows to work around it without asking the user: tell them which day and file.
+  - A day that failed before the fetch finished left no jobs marked as seen, so it simply starts over.
 - Fetch returns fewer jobs than expected or none: the third-party Apify actor may have changed or the queries are too narrow; check the Apify console for the run before changing anything else.
 
 ## What not to do

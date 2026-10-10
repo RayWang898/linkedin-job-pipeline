@@ -70,7 +70,8 @@ def find_existing_match(conn: sqlite3.Connection, c_key: str, desc_hash: str) ->
     return row[0] if row else None
 
 
-def dedup_batch(conn: sqlite3.Connection, jobs: list[dict], run_date: str | None = None) -> dict:
+def dedup_batch(conn: sqlite3.Connection, jobs: list[dict], run_date: str | None = None, commit: bool = True) -> dict:
+    """Mark new jobs as seen and return the kept ones. With commit=False the inserts stay in an open transaction for the caller to commit."""
     run_date = run_date or date.today().isoformat()
 
     kept = []
@@ -106,7 +107,8 @@ def dedup_batch(conn: sqlite3.Connection, jobs: list[dict], run_date: str | None
             )
             kept.append(job)
 
-    conn.commit()
+    if commit:
+        conn.commit()
 
     return {
         "kept": kept,
@@ -119,7 +121,7 @@ def process_slim_file(conn: sqlite3.Connection, path: Path) -> None:
     with path.open(encoding="utf-8") as f:
         jobs = json.load(f)
 
-    result = dedup_batch(conn, jobs)
+    result = dedup_batch(conn, jobs, commit=False)  # committed only after the output file is written
 
     print(f"Read: {path}")
     print(f"Input jobs: {len(jobs)}")
@@ -131,8 +133,13 @@ def process_slim_file(conn: sqlite3.Connection, path: Path) -> None:
 
     DEDUPED_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DEDUPED_DIR / path.name
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump(result["kept"], f, ensure_ascii=False, indent=2)
+    try:
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(result["kept"], f, ensure_ascii=False, indent=2)
+        conn.commit()  # mark the jobs as seen only now: if anything above failed, a rerun finds them new again
+    except Exception:
+        conn.rollback()
+        raise
 
     print(f"Saved to: {out_path}")
     print("-" * 50)
