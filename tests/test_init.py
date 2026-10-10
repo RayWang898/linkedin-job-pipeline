@@ -1,0 +1,76 @@
+"""init.py: create a workspace without overwriting anything."""
+
+import os
+import stat
+
+from conftest import run_init
+
+
+def test_creates_the_expected_files(tmp_path):
+    target = tmp_path / "ws"
+    proc = run_init(target)
+    assert proc.returncode == 0, proc.stderr
+    for name in ("config.yaml", ".env", ".gitignore", "profiles/shared.md", "profiles/a_marketing.md", "profiles/b_pm.md"):
+        assert (target / name).exists(), name
+    assert (target / "resumes").is_dir()
+    assert "created  config.yaml" in proc.stdout
+    assert "--dry-run" in proc.stdout  # points at the next step
+
+
+def test_env_file_is_private_and_empty_of_secrets(tmp_path):
+    target = tmp_path / "ws"
+    run_init(target)
+    mode = stat.S_IMODE(os.stat(target / ".env").st_mode)
+    assert mode == 0o600
+    text = (target / ".env").read_text(encoding="utf-8")
+    assert "APIFY_TOKEN=" in text and "ANTHROPIC_API_KEY=" in text
+
+
+def test_gitignore_keeps_keys_and_data_out_of_git(tmp_path):
+    target = tmp_path / "ws"
+    run_init(target)
+    lines = (target / ".gitignore").read_text(encoding="utf-8").splitlines()
+    for entry in (".env", "config.yaml", "profiles/", "resumes/", "data/", "logs/", "*.db"):
+        assert entry in lines
+
+
+def test_a_second_run_never_overwrites(tmp_path):
+    target = tmp_path / "ws"
+    run_init(target)
+    (target / "profiles" / "shared.md").write_text("my own text\n", encoding="utf-8")
+    (target / "config.yaml").write_text("my: config\n", encoding="utf-8")
+    proc = run_init(target)
+    assert proc.returncode == 0
+    assert (target / "profiles" / "shared.md").read_text(encoding="utf-8") == "my own text\n"
+    assert (target / "config.yaml").read_text(encoding="utf-8") == "my: config\n"
+    assert "kept     config.yaml" in proc.stdout
+
+
+def test_adds_only_what_is_missing(tmp_path):
+    target = tmp_path / "ws"
+    run_init(target)
+    (target / ".env").unlink()
+    proc = run_init(target)
+    assert "created  .env" in proc.stdout and "kept     config.yaml" in proc.stdout
+
+
+def test_language_option_copies_prompts_and_texts(tmp_path):
+    target = tmp_path / "ws"
+    proc = run_init(target, "--language", "zh-TW")
+    assert proc.returncode == 0
+    assert (target / "prompts.yaml").exists() and (target / "texts.yaml").exists()
+
+
+def test_unknown_language_is_refused_before_anything_is_created(tmp_path):
+    target = tmp_path / "ws"
+    proc = run_init(target, "--language", "fr")
+    assert proc.returncode != 0
+    assert "Available: zh-TW" in proc.stderr
+    assert not target.exists()
+
+
+def test_target_that_is_a_file_is_refused(tmp_path):
+    target = tmp_path / "afile"
+    target.write_text("x")
+    proc = run_init(target)
+    assert proc.returncode != 0 and "not a folder" in proc.stderr

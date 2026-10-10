@@ -35,7 +35,8 @@ def shortlisted_ids(day: str) -> set[str]:
 
 
 def line(job: dict, extra: str = "") -> str:
-    return f"  - {job['title']} @ {job['company']} ({job.get('location')}){extra}\n    {job.get('jobUrl', '')}  [{job['jobId']}]"
+    note = f" - {extra}" if extra else ""
+    return f"  - {job['title']} @ {job['company']} ({job.get('location')}){note}\n    {job.get('jobUrl', '')}  [{job['jobId']}]"
 
 
 def main():

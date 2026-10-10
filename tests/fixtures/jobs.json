@@ -1,0 +1,556 @@
+[
+ {
+  "jobId": "1001",
+  "title": "Marketing Coordinator",
+  "company": "Acme Corp",
+  "companyId": "c-acme-corp",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Acme Corp is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "20 applicants",
+   "count": 20,
+   "min": 20,
+   "max": 20,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1001",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1002",
+  "title": "Marketing Associate",
+  "company": "Beta LLC",
+  "companyId": "c-beta-llc",
+  "location": "Round Rock, TX",
+  "postedDate": "2026-10-09",
+  "description": "Beta LLC is hiring a Marketing Associate. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "Be among the first 25 applicants",
+   "count": null,
+   "min": null,
+   "max": 25,
+   "kind": "upper_bound"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1002",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1003",
+  "title": "Project Analyst",
+  "company": "Gamma Inc",
+  "companyId": "c-gamma-inc",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Gamma Inc is hiring a Project Analyst. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "30 applicants",
+   "count": 30,
+   "min": 30,
+   "max": 30,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1003",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1004",
+  "title": "Brand Specialist",
+  "company": "Delta Co",
+  "companyId": "c-delta-co",
+  "location": "Remote",
+  "postedDate": "2026-10-09",
+  "description": "Delta Co is hiring a Brand Specialist. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "40 applicants",
+   "count": 40,
+   "min": 40,
+   "max": 40,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1004",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1005",
+  "title": "Immersive Experience Producer",
+  "company": "Epsilon Studio",
+  "companyId": "c-epsilon-studio",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Epsilon Studio is hiring a Immersive Experience Producer. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1005",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1006",
+  "title": "Marketing Coordinator",
+  "company": "Zeta Co",
+  "companyId": "c-zeta-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Zeta Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "35 applicants",
+   "count": 35,
+   "min": 35,
+   "max": 35,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1006",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1007",
+  "title": "Marketing Intern",
+  "company": "Eta Co",
+  "companyId": "c-eta-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Eta Co is hiring a Marketing Intern. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "12 applicants",
+   "count": 12,
+   "min": 12,
+   "max": 12,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1007",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1008",
+  "title": "Operations Clerk",
+  "company": "Theta Co",
+  "companyId": "c-theta-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Theta Co is hiring a Operations Clerk. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "15 applicants",
+   "count": 15,
+   "min": 15,
+   "max": 15,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1008",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1009",
+  "title": "Associate Project Manager",
+  "company": "Iota Co",
+  "companyId": "c-iota-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Iota Co is hiring a Associate Project Manager. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "22 applicants",
+   "count": 22,
+   "min": 22,
+   "max": 22,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1009",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1010",
+  "title": "Marketing Coordinator",
+  "company": "Kappa Co",
+  "companyId": "c-kappa-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Kappa Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. We are not able to support OPT or STEM OPT candidates.",
+  "applicantsDetails": {
+   "text": "18 applicants",
+   "count": 18,
+   "min": 18,
+   "max": 18,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1010",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1011",
+  "title": "Project Analyst",
+  "company": "Lambda Co",
+  "companyId": "c-lambda-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Lambda Co is hiring a Project Analyst. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "Over 200 applicants",
+   "count": null,
+   "min": 200,
+   "max": null,
+   "kind": "lower_bound"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1011",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1012",
+  "title": "Marketing Coordinator",
+  "company": "Mu Co",
+  "companyId": "c-mu-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Mu Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": null,
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1012",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1013",
+  "title": "Senior Marketing Manager",
+  "company": "Nu Co",
+  "companyId": "c-nu-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Nu Co is hiring a Senior Marketing Manager. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1013",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1014",
+  "title": "Director of Marketing",
+  "company": "Xi Co",
+  "companyId": "c-xi-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Xi Co is hiring a Director of Marketing. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1014",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1016",
+  "title": "Marketing Coordinator",
+  "company": "Omicron Co",
+  "companyId": "c-omicron-co",
+  "location": "Denver, CO",
+  "postedDate": "2026-10-09",
+  "description": "Omicron Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1016",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1017",
+  "title": "Marketing Coordinator",
+  "company": "Pi Co",
+  "companyId": "c-pi-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Pi Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "80 applicants",
+   "count": 80,
+   "min": 80,
+   "max": 80,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1017",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1018",
+  "title": "Marketing Coordinator",
+  "company": "Rho Co",
+  "companyId": "c-rho-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Rho Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. Requires 5+ years of experience.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1018",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1019",
+  "title": "Marketing Coordinator",
+  "company": "Tau Co",
+  "companyId": "c-tau-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Tau Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. Requires 3-5 years of experience.",
+  "applicantsDetails": {
+   "text": "11 applicants",
+   "count": 11,
+   "min": 11,
+   "max": 11,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1019",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1020",
+  "title": "Marketing Coordinator",
+  "company": "Upsilon Co",
+  "companyId": "c-upsilon-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Upsilon Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. At least five years of experience is required.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1020",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1021",
+  "title": "Volunteer Marketing Coordinator",
+  "company": "Phi Co",
+  "companyId": "c-phi-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Phi Co is hiring a Volunteer Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1021",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1022",
+  "title": "Marketing Coordinator",
+  "company": "Chi Co",
+  "companyId": "c-chi-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Chi Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. This is an unpaid position.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1022",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1023",
+  "title": "Marketing Coordinator",
+  "company": "Example Staffing Co",
+  "companyId": "c-example-staffing-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Example Staffing Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1023",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1024",
+  "title": "Marketing Coordinator",
+  "company": "Psi Co",
+  "companyId": "c-psi-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Psi Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. We will not sponsor visas.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1024",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1026",
+  "title": "Marketing Coordinator",
+  "company": "Acme Corp",
+  "companyId": "c-acme-corp",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Acme Corp is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "21 applicants",
+   "count": 21,
+   "min": 21,
+   "max": 21,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1026",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1028",
+  "title": "Marketing Coordinator",
+  "company": "Tracked Co",
+  "companyId": "c-tracked-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Tracked Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1028",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1029",
+  "title": "Project Analyst",
+  "company": "Omega Co",
+  "companyId": "c-omega-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Omega Co is hiring a Project Analyst. You will support campaigns, coordinate with vendors and report on results every week.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1029",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1030",
+  "title": "Marketing Coordinator",
+  "company": "Alpha Co",
+  "companyId": "c-alpha-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Alpha Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. We have 50 years of experience in the industry.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1030",
+  "salaryDetails": null,
+  "recruiter": null
+ },
+ {
+  "jobId": "1031",
+  "title": "Marketing Coordinator",
+  "company": "Preferred Co",
+  "companyId": "c-preferred-co",
+  "location": "Austin, TX",
+  "postedDate": "2026-10-09",
+  "description": "Preferred Co is hiring a Marketing Coordinator. You will support campaigns, coordinate with vendors and report on results every week. 5+ years preferred.",
+  "applicantsDetails": {
+   "text": "10 applicants",
+   "count": 10,
+   "min": 10,
+   "max": 10,
+   "kind": "exact"
+  },
+  "applicationMethod": "external",
+  "jobUrl": "https://example.com/jobs/1031",
+  "salaryDetails": null,
+  "recruiter": null
+ }
+]

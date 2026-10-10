@@ -20,6 +20,7 @@ Instructions for AI coding agents working on this repository.
 - `.claude/skills/setup/` is the `/setup` interview for new users. It names config keys, commands and file formats; when those change, update the skill in the same commit.
 - `init.py` and `check.py` (the `--dry-run` report) name config keys and files; when you add or rename a setting, update the checks in `check.py` and the files `init.py` copies.
 - `AGENTS.md` is the manual for a *user's* agent (commands, setup interview, tuning, recovery). When you change a command, flag, config key or failure behavior, update it in the same commit.
+- **Run the tests before you commit:** `venv/bin/pip install -r requirements-dev.txt` once, then `venv/bin/python -m pytest -n auto` (see `tests/README.md`). They use no network and cost nothing. A wording change in `prompts.py` or `texts.py` will fail `test_golden.py` on purpose: regenerate the golden files with `UPDATE_GOLDEN=1` and read the diff. The tests do not judge the quality of real model scores; that is still `replay_triage.py`.
 - Update `docs/roadmap.md` (status column) when a task finishes.
 
 ## Environment notes

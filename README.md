@@ -130,6 +130,10 @@ Everything the scoring models are told lives in `scripts/execution-python/prompt
 
 The notes, `_summary.md` and the phone notification are written from `scripts/execution-python/texts.py` (English). Copy `texts.example/zh-TW.yaml` to `texts.yaml` in your workspace to switch them, or edit any text. These never affect scoring. If your tracker file uses other words than `Applied` and `Evaluated, skipped`, set `tracker_labels` in `config.yaml`. Console output and error messages are English only.
 
+## Tests
+
+`venv/bin/pip install -r requirements-dev.txt && venv/bin/python -m pytest -n auto` runs about 270 tests in about a minute. They use fakes for Apify, Anthropic and the network, so they cost nothing and never touch your data. See `tests/README.md`.
+
 ## Limitations
 
 - **Terms of service.** Fetching LinkedIn through a third-party scraper may conflict with LinkedIn's terms of service. Use it for your own job search only, and read the terms yourself. The scraper is a third-party Apify actor you rely on; if it changes or disappears, fetching breaks.
