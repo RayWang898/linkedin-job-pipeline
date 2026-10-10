@@ -29,11 +29,12 @@ Do these in order. Tasks 1 and 2 matter most: without them the engine cannot run
 
 | # | Task | Status | Notes |
 |---|---|---|---|
-| 12 | `AGENTS.md` for the user's agent: install, run, where files live | later | Separate from `CLAUDE.md`, which is for developing this repo |
+| 12 | `AGENTS.md` for the user's agent: install, run, where files live | done | Separate from `CLAUDE.md`, which is for developing this repo |
 | 13 | `/setup` skill: interview the user, then write `profiles/` and `config.yaml` | later | The hardest part for new users is writing profiles; this is the main selling point |
 | 14 | `init` command that creates a workspace and copies the examples | later | |
 | 15 | `--dry-run` and machine-readable output on the main commands | later | Safer and easier for agents |
 | 16 | Fixture data and basic tests so the pipeline can run end to end without API cost | later | Also protects against regressions |
+| 16a | Make a failed day resumable: record each step's completion for the day, and on a rerun skip finished steps and never overwrite the day's filtered file with an empty one | later | Found while testing: a full rerun after a failure at step 5-6 keeps 0 jobs because dedup already marked them seen (inherited from the original engine). Workaround is documented in `AGENTS.md` |
 
 ## P3: Test with a real outsider, then release
 

@@ -17,6 +17,7 @@ Instructions for AI coding agents working on this repository.
 - **Changing prompts changes scoring behavior.** All model-facing text lives in `scripts/execution-python/prompts.py` (English defaults; a workspace can override it with `prompts.yaml`). After editing it, or the tool schemas in `score.py`, check the scoring with `replay_triage.py` before committing. Compare against a rerun of the old prompts, not against stored scores, because the model itself varies between runs (see ADR 0003).
 - **The repo is private until P3 is done.** Do not make it public or add collaborators without the maintainer's explicit yes.
 - When a decision is hard to reverse, surprising later, and the result of a real trade-off, write an ADR in `docs/adr/`.
+- `AGENTS.md` is the manual for a *user's* agent (commands, setup interview, tuning, recovery). When you change a command, flag, config key or failure behavior, update it in the same commit.
 - Update `docs/roadmap.md` (status column) when a task finishes.
 
 ## Environment notes

@@ -127,7 +127,7 @@ The notes, `_summary.md` and the phone notification are written from `scripts/ex
 - **Terms of service.** Fetching LinkedIn through a third-party scraper may conflict with LinkedIn's terms of service. Use it for your own job search only, and read the terms yourself. The scraper is a third-party Apify actor you rely on; if it changes or disappears, fetching breaks.
 - **Scores are model judgments, and they vary.** In a test on 100 jobs, scoring the same job twice with the same model gave the same best score for 84% of the jobs and a score within one point for 95%. Jobs near the 3/4 boundary move most. Treat the shortlist as a starting point, not a verdict, and use `replay_triage.py` before you change prompts or models: compare against a rerun of the old setup, not against old stored scores.
 - **Public data only.** Applicant counts and descriptions are whatever the public page shows; some postings are missing fields.
-- **One successful run per day.** A day that succeeded is skipped unless you pass `--force`.
+- **One successful run per day, and a failed day cannot be rerun as a whole.** A day that succeeded is skipped unless you pass `--force`. If a day fails after the filter step, do not run `run_daily.py` again: dedup has already marked that day's jobs as seen, so the rerun would keep none of them. Resume with `score.py --only raw_YYYYMMDD.json` instead (see `AGENTS.md`). Making failed days resumable is on the roadmap.
 - **macOS only for the scheduling example.** The pipeline itself is plain Python; other schedulers work too but are not documented yet.
 
 ## Roadmap

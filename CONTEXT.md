@@ -21,7 +21,7 @@ Step 1 fetch -> Step 2 slim -> Step 3 dedup -> Step 4 filter -> Step 5 AI scorin
 - The daily run is a plain script (cron or launchd). It calls the Anthropic API itself and needs no agent at runtime.
 - An AI coding agent is the **default way to set up and tune** it: interview the user, write their profiles and config, adjust rules, calibrate scoring. Manual setup (copy the example files and edit) stays available as a fallback.
 - Intended users are comfortable with a terminal. They need an Apify token and an Anthropic API key and pay for their own usage.
-- Planned agent-facing files (P2): `AGENTS.md` for the user's agent, and a `/setup` skill.
+- Agent-facing files: `AGENTS.md` (written) is the manual for the user's agent; a `/setup` skill (P2) will run the profile interview and write the config.
 
 ## Architecture decision (read ADR 0002)
 One engine codebase plus a user **workspace**. The engine (code, templates, docs) lives in this repo. Each user's data lives in their own workspace folder. The maintainer's own data will become just another workspace. Rejected: a long-lived `public-release` branch and a second copy of the code, because the maintainer's daily scheduled run uses the old folder and two copies drift apart.
