@@ -29,12 +29,12 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import fetch  # noqa: E402
+import score  # noqa: E402
 from dedup import init_db  # noqa: E402
 
 LOG_DIR = Path("logs")
 DB_PATH = Path("jobs.db")
 CONFIG_PATH = Path("config.yaml")
-TRACK_LABELS = ["A", "B"]
 STALE_RUNNING_HOURS = 3  # 超過這個時間還標記為 running，視為上次異常中斷
 
 _log_file = None
@@ -164,7 +164,7 @@ def fmt_tokens(tokens: dict) -> str:
 
 def success_message(stats: dict, failed_queries: list[str], gap: int | None) -> str:
     total = stats["main"] + stats["custom"]
-    tracks = "・".join(f"{t} {stats['by_track'].get(t, 0)}" for t in TRACK_LABELS)
+    tracks = "・".join(f"{t} {stats['by_track'].get(t, 0)}" for t in score.TRACKS)
     parts = [f"短名單 {total} 筆", tracks]
     if stats["custom"]:
         parts.append(f"需客製 {stats['custom']}")

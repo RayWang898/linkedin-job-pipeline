@@ -84,6 +84,26 @@ apify:
 # ---------------------------------------------------------------------------
 # Step 5-6 scoring and shortlist (score.py)
 # ---------------------------------------------------------------------------
+# Tracks: the job directions you want. Each has one profile file in profiles/ (your background for that
+# direction) and one resume. Add or remove entries freely; at least one is required.
+#   id       single uppercase letter, unique. Used in note properties (score_A) and tags (track/A-Marketing).
+#   name     shown to the model and in notes.
+#   tag      the part after the letter in the note tag.
+#   profile  file name inside profiles/. A shared profiles/shared.md (always required) holds your common background.
+#   resume   resume file name; only shown in notes as the suggested resume, the program never opens it.
+# The order here breaks ties: when two tracks score the same, the earlier one is the best track.
+tracks:
+  - id: A
+    name: Marketing
+    tag: Marketing
+    profile: a_marketing.md
+    resume: Resume_Marketing.docx
+  - id: B
+    name: Project management
+    tag: PM
+    profile: b_pm.md
+    resume: Resume_PM.docx
+
 scoring:
   provider: "anthropic"
   triage_model: "claude-haiku-4-5-20251001"   # scores every job

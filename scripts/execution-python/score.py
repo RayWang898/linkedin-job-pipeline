@@ -37,10 +37,33 @@ PROFILES_DIR = Path("profiles")
 DB_PATH = Path("jobs.db")
 CONFIG_PATH = Path("config.yaml")
 
-TRACKS = {
-    "A": {"name": "行銷", "tag": "Marketing", "file": "a_marketing.md", "resume": "Resume_Marketing.docx"},
-    "B": {"name": "PM", "tag": "PM", "file": "b_pm.md", "resume": "Resume_PM.docx"},
-}
+TRACK_FIELDS = ("id", "name", "tag", "profile", "resume")
+
+
+def load_tracks(path: Path = CONFIG_PATH) -> dict:
+    """Read the `tracks:` list from config.yaml. Returns {id: {name, tag, file, resume}} in config order."""
+    if not path.exists():
+        sys.exit(f"{path} not found in {Path.cwd()}. Copy config.example.yaml there, or pass --workspace.")
+    with path.open(encoding="utf-8") as f:
+        entries = (yaml.safe_load(f) or {}).get("tracks")
+    if not isinstance(entries, list) or not entries:
+        sys.exit(f"{path}: `tracks:` must be a list with at least one track (see config.example.yaml).")
+    tracks = {}
+    for n, entry in enumerate(entries, 1):
+        missing = [k for k in TRACK_FIELDS if not isinstance(entry, dict) or not str(entry.get(k) or "").strip()]
+        if missing:
+            sys.exit(f"{path}: tracks entry {n} is missing {', '.join(missing)}.")
+        tid = str(entry["id"]).strip()
+        if not re.fullmatch(r"[A-Z]", tid):
+            sys.exit(f"{path}: track id {tid!r} must be a single uppercase letter.")
+        if tid in tracks:
+            sys.exit(f"{path}: track id {tid} is used twice.")
+        tracks[tid] = {"name": str(entry["name"]).strip(), "tag": str(entry["tag"]).strip(),
+                       "file": str(entry["profile"]).strip(), "resume": str(entry["resume"]).strip()}
+    return tracks
+
+
+TRACKS = load_tracks()
 SHARED_FILE = "shared.md"
 UNKNOWN_APPLICANTS = 10**9  # 應徵人數未知時，排序放最後
 
@@ -153,9 +176,13 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
 
 def load_profiles(directory: Path = PROFILES_DIR) -> dict:
     """回傳 {'shared': str, 'tracks': {'A': str, ...}, 'hash': str}。triage_hash／detail_hash 各涵蓋 profiles 加上該階段的規則文字（初評規則、詳評規則與工具定義）。"""
+    needed = {SHARED_FILE: "shared profile", **{info["file"]: f"profile for track {t}" for t, info in TRACKS.items()}}
+    for name, what in needed.items():
+        if not (directory / name).is_file():
+            sys.exit(f"Missing {what}: {directory / name} (in workspace {Path.cwd()}).")
     shared = (directory / SHARED_FILE).read_text(encoding="utf-8")
     tracks = {t: (directory / info["file"]).read_text(encoding="utf-8") for t, info in TRACKS.items()}
-    base = shared + "".join(tracks[t] for t in TRACKS)
+    base = json.dumps(TRACKS, ensure_ascii=False, sort_keys=True) + shared + "".join(tracks[t] for t in TRACKS)
 
     def digest(extra: str) -> str:
         return hashlib.sha256((extra + base).encode("utf-8")).hexdigest()

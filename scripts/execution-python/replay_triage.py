@@ -31,7 +31,6 @@ import workspace  # noqa: F401  (sets the working directory to the workspace; ke
 import score  # noqa: E402
 
 FEEDBACK_DIR = Path("feedback")
-TRACK_KEYS = list(score.TRACKS)
 
 
 def sample_jobs(scored: list[dict], positives: int, others: int, seed: int) -> list[dict]:
@@ -63,7 +62,7 @@ def build_report(model: str, source: str, rows: list[dict], usage: score.Usage, 
     gained = sum(r["new"]["best_score"] >= 4 for r in neg)
     track_same = sum(r["new"]["best_track"] == r["old"]["best_track"] for r in ok)
     custom_same = sum(r["new"]["needs_custom"] == r["old"]["needs_custom"] for r in ok)
-    per_track = {t: sum(r["new"]["scores"][t] == r["old"]["scores"][t] for r in ok) for t in TRACK_KEYS}
+    per_track = {t: sum(r["new"]["scores"][t] == r["old"]["scores"][t] for r in ok) for t in score.TRACKS}
     crossing = [r for r in ok if (r["old"]["best_score"] >= 4) != (r["new"]["best_score"] >= 4)]
     lines = [
         f"# 初評重播：{model}（{date.today().isoformat()}）", "",
