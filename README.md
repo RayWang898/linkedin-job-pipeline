@@ -1,8 +1,10 @@
 # linkedin-job-pipeline
 
-A daily pipeline that fetches new LinkedIn job postings, filters them with hard rules, scores them against your background with Claude, and writes a ranked shortlist as Markdown notes.
+A daily pipeline for job hunting. It fetches new public LinkedIn postings, drops the ones that break your hard rules, scores each remaining job against your background with Claude, and writes a ranked shortlist as Markdown notes: one folder per job, with a short summary, a fit score for each of your job directions ("tracks") and advice on which resume to send and what to emphasize.
 
-> **Status: work in progress.** This is a first cut of the public version. Prompts and output text are still partly in Chinese, and setup is manual. English prompts, a setup guide and an agent-assisted setup are planned.
+It only reads public job pages. It does not log in to LinkedIn and it does not apply for you.
+
+> **Status: pre-release.** The engine works end to end, but setup is manual for now. An agent-assisted setup (your coding agent interviews you and writes your profiles and config) is planned; see [Roadmap](#roadmap).
 
 ## How it works
 
@@ -10,50 +12,127 @@ A daily pipeline that fetches new LinkedIn job postings, filters them with hard 
 fetch -> slim -> dedup -> filter -> AI scoring -> shortlist
 ```
 
-1. **Fetch:** pulls public LinkedIn job pages through an Apify actor. It does not log in and does not apply for you.
-2. **Slim and dedup:** keeps the needed fields and drops jobs seen before (SQLite).
-3. **Filter:** drops jobs by location, title, applicant count, required years, unpaid roles and staffing agencies. All rules live in `config.yaml`. If you need visa sponsorship, set `visa.enabled: true` to also drop jobs that refuse it and have the scoring model flag them.
-4. **AI scoring:** a small model scores every job 0-5 for each of your tracks. A larger model writes detailed advice for the top ones.
-5. **Shortlist:** one Markdown note per job, plus a daily summary.
+1. **Fetch:** an Apify actor pulls public LinkedIn job pages for each of your search queries and locations.
+2. **Slim and dedup:** keeps the needed fields and drops jobs you have already seen (SQLite, `jobs.db`).
+3. **Filter:** hard rules from `config.yaml`: location whitelist, applicant cap, title patterns, required years of experience, unpaid roles, staffing agencies, jobs you already applied to, and optionally visa-sponsorship phrases. No AI here.
+4. **AI scoring:** a small model scores every remaining job 0-5 for each track using your profiles; a larger model writes detailed advice for the top ones; the small model also summarizes them.
+5. **Shortlist:** `data/7_shortlist/<date>/` gets one folder and one `.md` per job plus a `_summary.md` with counts and token usage. Optionally your phone gets a short notification (ntfy).
+
+The daily run is a plain script. It needs no agent at runtime; it calls the Anthropic API itself.
 
 ## What you need
 
-- Python 3.11+
-- An [Apify](https://apify.com) token
-- An [Anthropic](https://console.anthropic.com) API key
+- Python 3.11 or newer, and a terminal
+- An [Apify](https://apify.com) account and API token (runs the scraper)
+- An [Anthropic](https://console.anthropic.com) API key (runs the scoring)
 - Optional: an [ntfy](https://ntfy.sh) topic for phone notifications
+- Optional: macOS, if you want to use the included launchd example for scheduling
 
-You pay for Apify and Anthropic usage yourself. Lower `max_jobs_per_search` and `daily.max_total_jobs` in `config.yaml` to control cost.
+You pay for Apify and Anthropic usage yourself. See [Cost](#cost).
 
-## Setup (manual)
+## Quickstart
+
+**1. Get the engine and install its dependencies.**
 
 ```bash
+git clone https://github.com/RayWang898/linkedin-job-pipeline.git
+cd linkedin-job-pipeline
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
-cp config.example.yaml config.yaml    # edit locations, queries and filter rules
-cp -r profiles.example profiles       # write your own background and tracks
-cp .env.example .env                  # add your keys
-venv/bin/python scripts/execution-python/run_daily.py --no-notify --max-jobs 5 --db test.db
 ```
 
-The folder you run these commands from is your workspace: it holds `config.yaml`, `profiles/`, `.env`, `data/` and `jobs.db`. For a quick first try you can use the repo folder itself (those files are git-ignored). To keep your data apart from the engine, put them in another folder and pass `--workspace /path/to/workspace` (or set `JOBSEARCH_HOME`) to any script.
+**2. Create your workspace.** The workspace is a folder of your own that holds your config, profiles, data and keys, kept apart from the engine. Any empty folder will do:
 
-Your tracks are the `tracks:` list in `config.yaml` (two examples, A and B): each has a letter, a name, a tag, a profile file in `profiles/` and a resume file name. Use as many as you like, at least one; `profiles/shared.md` is always required. Put your resumes in `resumes/`. `config.yaml`, `profiles/`, `resumes/`, `data/`, `.env` and the databases are git-ignored, so your personal data stays out of the repository.
+```bash
+ENGINE="$PWD"                      # the folder you just cloned
+mkdir ~/jobsearch && cd ~/jobsearch
+cp "$ENGINE/config.example.yaml" config.yaml
+cp -r "$ENGINE/profiles.example" profiles
+cp "$ENGINE/.env.example" .env
+```
 
-To run it every day on macOS, adapt `scripts/launchd/com.example.jobsearch.plist`.
+**3. Fill in your details.**
 
-## Prompt language
+- `.env`: put your `APIFY_TOKEN` and `ANTHROPIC_API_KEY` (and `NTFY_TOPIC` if you want notifications).
+- `profiles/shared.md`: your background, shared experience, skills, hard rules, and the job types worth a custom resume. This is the most important file: the scoring is only as good as what you write here.
+- `profiles/<track>.md`: one file per job direction, describing what you want and what to emphasize for it.
+- `config.yaml`: your locations, search queries, filter rules and `tracks:` (one entry per direction: a letter, a name, a tag, the profile file in `profiles/` and the file name of your resume). The example has two tracks; use as many as you like, at least one. Every setting is commented in the file.
 
-The instructions the scoring models see are in `scripts/execution-python/prompts.py` (English by default). To change the language the models write their reasons, advice and summaries in, set `scoring.output_language` in `config.yaml`. To replace the instructions themselves, copy `prompts.example/zh-TW.yaml` (a Traditional Chinese set) to `prompts.yaml` in your workspace and edit it; keys you delete keep the English default.
+**4. Try a small run first.** It fetches only 5 jobs per query and uses a separate test database, so your real `jobs.db` stays clean:
 
-## Display language
+```bash
+"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py" --no-notify --max-jobs 5 --db test.db
+```
 
-Shortlist notes, the daily summary file and the phone notification are written from the texts in `scripts/execution-python/texts.py` (English by default). Copy `texts.example/zh-TW.yaml` to `texts.yaml` in your workspace to switch to Traditional Chinese, or edit any text there. These texts never affect scoring or the score cache. Console output and error messages are English only.
+Then open `data/7_shortlist/<today>/_summary.md` and a job note next to it. Check that the filters and scores look sensible before running at full size. (With only 5 jobs per query the shortlist may be empty; that is normal.)
+
+**5. Run it for real.**
+
+```bash
+"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py"
+```
+
+A day that already succeeded is skipped; add `--force` to rerun it. Run the scripts from inside your workspace, or from anywhere with `--workspace /path/to/workspace` (or the `JOBSEARCH_HOME` environment variable). Your data stays in the workspace, never in the engine folder; `config.yaml`, `profiles/`, `resumes/`, `data/`, `.env` and `*.db` are git-ignored in case you do keep a workspace inside a clone.
+
+## Running it every day (macOS)
+
+`scripts/launchd/com.example.jobsearch.plist` is a template for a launchd job. Replace `/path/to/engine` with your clone and `/path/to/workspace` with your workspace, copy it to `~/Library/LaunchAgents/`, and load it:
+
+```bash
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.example.jobsearch.plist
+```
+
+The Mac must be awake at the scheduled time; if it was asleep, launchd runs the job at the next wake, and a day that already succeeded is skipped. To wake a Mac a few minutes earlier, `sudo pmset repeat wakeorpoweron MTWRFSU 07:55:00` works. On Linux, a cron entry that runs the same command with `--workspace` does the same job.
+
+## Cost
+
+You pay two providers. Check both price pages before you rely on these numbers; they change.
+
+**Anthropic (scoring).** Measured on the author's setup, which fetches about 650 postings a day and scores them on four tracks: roughly 0.24M input, 0.03M output, 0.02M cache-write and 0.9M cache-read tokens a day, across triage and detailed review. At the list prices of October 2026 (Haiku 4.5: $1 input / $5 output per million tokens, used for triage and summaries; Sonnet 5.5: $2 / $10, used for the detailed review; cache reads about a tenth of the input price) that is about **$0.5 to $1 a day**, or $15 to $30 a month. A rough rule from a measured sample: triaging one job costs about a quarter of a cent with Haiku 4.5.
+
+**Apify (fetching).** The default actor lists "from $0.05 per 1,000 jobs" plus Apify platform usage (compute), which depends on how many jobs you fetch and on run time. We have not measured it; look at your Apify console after the first full run.
+
+What moves the bill:
+
+| Setting (`config.yaml`) | Effect |
+| --- | --- |
+| `apify.max_jobs_per_search`, `daily.max_total_jobs` | Fewer fetched jobs: less Apify and less scoring |
+| Number of tracks and the length of your profiles | They are sent with every triage call (cached, but still tokens) |
+| `scoring.triage_description_chars` | How much of each posting the triage model reads |
+| `scoring.detail_count`, `scoring.detail_custom` | How many jobs get the more expensive detailed review |
+| `scoring.triage_model` | A cheaper model costs less. Check agreement first with `replay_triage.py` (see below) |
+
+## Your tracks and profiles
+
+A **track** is a job direction you want (for example Marketing or Project Management), with one profile file and one resume. Triage scores every job once per track; the best score decides whether a job reaches the shortlist (`scoring.shortlist_min_score`, default 4; the list is never padded with weaker jobs). Jobs that fit a type listed under "Job types worth a custom resume" in `shared.md` but no base resume covers well are flagged `needs custom resume` and listed separately.
+
+Note properties and tags use the track letter and tag (`score_A`, `track/A-Marketing`), so they stay stable if you rename a track.
+
+## Optional features
+
+- **Visa sponsorship (`visa:`).** Off by default. If you need an employer to sponsor a work visa, set `visa.enabled: true`: jobs whose description clearly refuses sponsorship are dropped in the filter, and the scoring model also flags them (their scores are capped at 1 and the daily summary lists them so you can spot wrong calls). The wording is written for US visas such as OPT.
+- **Already-applied list (`tracker_path`).** Point it at a text file of jobs you already applied to or decided against, and matching jobs are skipped. The format is described in `config.example.yaml`.
+- **Backfill.** `scripts/execution-python/backfill.py` fetches the past N days once and writes its own shortlist folder.
+- **Add a job by hand.** `scripts/execution-python/add_to_shortlist.py` scores and files a single posting, including ones that are not on LinkedIn.
+- **Calibration.** `scripts/execution-python/calibrate.py` lists jobs that were nearly excluded or nearly shortlisted, so you can check your rules in a few minutes a day. The daily run saves its output to `feedback/`.
+
+## Prompt and display language
+
+Everything the scoring models are told lives in `scripts/execution-python/prompts.py`, in English. Set `scoring.output_language` in `config.yaml` to change the language of the reasons, advice and summaries. To replace the instructions themselves, copy `prompts.example/zh-TW.yaml` (a Traditional Chinese set) to `prompts.yaml` in your workspace and edit it; keys you delete keep the English default. Changing a prompt makes cached scores be recomputed.
+
+The notes, `_summary.md` and the phone notification are written from `scripts/execution-python/texts.py` (English). Copy `texts.example/zh-TW.yaml` to `texts.yaml` in your workspace to switch them, or edit any text. These never affect scoring. If your tracker file uses other words than `Applied` and `Evaluated, skipped`, set `tracker_labels` in `config.yaml`. Console output and error messages are English only.
 
 ## Limitations
 
-- Fetching LinkedIn through a third-party scraper may conflict with LinkedIn's terms of service. Use it for your own job search only, and check the terms yourself.
-- Scores are model judgments. Treat the shortlist as a starting point, not a verdict.
+- **Terms of service.** Fetching LinkedIn through a third-party scraper may conflict with LinkedIn's terms of service. Use it for your own job search only, and read the terms yourself. The scraper is a third-party Apify actor you rely on; if it changes or disappears, fetching breaks.
+- **Scores are model judgments, and they vary.** In a test on 100 jobs, scoring the same job twice with the same model gave the same best score for 84% of the jobs and a score within one point for 95%. Jobs near the 3/4 boundary move most. Treat the shortlist as a starting point, not a verdict, and use `replay_triage.py` before you change prompts or models: compare against a rerun of the old setup, not against old stored scores.
+- **Public data only.** Applicant counts and descriptions are whatever the public page shows; some postings are missing fields.
+- **One successful run per day.** A day that succeeded is skipped unless you pass `--force`.
+- **macOS only for the scheduling example.** The pipeline itself is plain Python; other schedulers work too but are not documented yet.
+
+## Roadmap
+
+Planned next: an `AGENTS.md` and a `/setup` skill so your coding agent can interview you and write your profiles and config; an `init` command that creates a workspace; `--dry-run`; and fixture-based tests that run the whole pipeline without API cost. See `docs/roadmap.md`.
 
 ## License
 
