@@ -83,7 +83,7 @@ def build_report(model: str, source: str, rows: list[dict], usage: score.Usage, 
         cell = lambda s: str(s).replace("|", "/")  # a | in a title or company name would break the table
         lines.append(f"| {cell(j['company'][:24])}: {cell(j['title'][:40])} | {r['old']['best_track']}{r['old']['best_score']} | "
                      f"{r['new']['best_track']}{r['new']['best_score']} | {cell(r['new']['reason'][:80])} |")
-    lines += ["", "## API usage", "", f"- {usage.line()}", ""]
+    lines += ["", "## API usage", "", f"- {usage.plain()}", ""]
     return "\n".join(lines)
 
 

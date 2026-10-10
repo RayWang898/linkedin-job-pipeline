@@ -149,4 +149,4 @@ if __name__ == "__main__":
 
     print(f"Written: {folder}/{folder.name}.md (rank {rank or 'none'}, best {triage['best_track']} {triage['best_score']})")
     for label, u in usages.items():
-        print(f"{label} usage: {u.line()}")
+        print(f"{label} usage: {u.plain()}")

@@ -196,6 +196,13 @@ class Usage:
         for f in self.FIELDS:
             self.tokens[f] += getattr(usage, f, 0) or 0
 
+    def plain(self) -> str:
+        """Fixed English summary for the console and reports; line() is the display text that follows texts.yaml."""
+        t = self.tokens
+        failed = f"; {len(self.failures)} failed" if self.failures else ""
+        return (f"{self.calls} calls{failed}; input {t['input_tokens']}, output {t['output_tokens']}, "
+                f"cache write {t['cache_creation_input_tokens']}, cache read {t['cache_read_input_tokens']} tokens")
+
     def line(self) -> str:
         t = self.tokens
         retries = fill(TX["usage_retries"], n=len(self.failures)) if self.failures else ""
@@ -839,7 +846,7 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
     print(f"Input jobs: {len(jobs)}, triaged: {len(scored)}")
     print(f"Shortlist: main {len(selection['main'])}, needs custom resume {len(selection['custom'])}")
     for label, u in usages.items():
-        print(f"{label} usage: {u.line()}")
+        print(f"{label} usage: {u.plain()}")
     print(f"Saved to: {SCORED_DIR}/{path.name}, {shortlist_path}")
     print("-" * 50)
 
