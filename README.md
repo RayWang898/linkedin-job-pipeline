@@ -42,6 +42,10 @@ Your tracks are the `tracks:` list in `config.yaml` (two examples, A and B): eac
 
 To run it every day on macOS, adapt `scripts/launchd/com.example.jobsearch.plist`.
 
+## Prompt language
+
+The instructions the scoring models see are in `scripts/execution-python/prompts.py` (English by default). To change the language the models write their reasons, advice and summaries in, set `scoring.output_language` in `config.yaml`. To replace the instructions themselves, copy `prompts.example/zh-TW.yaml` (a Traditional Chinese set) to `prompts.yaml` in your workspace and edit it; keys you delete keep the English default.
+
 ## Limitations
 
 - Fetching LinkedIn through a third-party scraper may conflict with LinkedIn's terms of service. Use it for your own job search only, and check the terms yourself.

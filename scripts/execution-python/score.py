@@ -26,6 +26,7 @@ import anthropic
 import yaml
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
+import prompts
 from dedup import init_db
 from filter import effective_applicant_count, visa_settings
 
@@ -65,13 +66,16 @@ def load_tracks(path: Path = CONFIG_PATH) -> dict:
 
 TRACKS = load_tracks()
 with CONFIG_PATH.open(encoding="utf-8") as _f:
-    VISA_ENABLED = visa_settings(yaml.safe_load(_f))["enabled"]
+    _config = yaml.safe_load(_f)
+VISA_ENABLED = visa_settings(_config)["enabled"]
+OUTPUT_LANGUAGE = (_config.get("scoring") or {}).get("output_language") or "English"
+P = prompts.load(OUTPUT_LANGUAGE)  # all model-facing text; see prompts.py
 SHARED_FILE = "shared.md"
 UNKNOWN_APPLICANTS = 10**9  # 應徵人數未知時，排序放最後
 
 TRIAGE_TOOL = {
     "name": "submit_triage",
-    "description": "提交這筆職缺對各條求職路線的初評。",
+    "description": P["triage_tool_description"],
     "input_schema": {
         "type": "object",
         "properties": {
@@ -80,45 +84,31 @@ TRIAGE_TOOL = {
                 "properties": {t: {"type": "integer", "minimum": 0, "maximum": 5} for t in TRACKS},
                 "required": list(TRACKS),
             },
-            "custom_family": {
-                "type": "boolean",
-                "description": "職缺是否屬於 shared.md「值得客製的職缺類型」清單中的任一類型。",
-            },
-            "reason": {"type": "string", "description": "一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分。"},
+            "custom_family": {"type": "boolean", "description": P["custom_family_description"]},
+            "reason": {"type": "string", "description": P["reason_description"]},
         },
         "required": ["scores", "custom_family", "reason"],
     },
 }
 if VISA_ENABLED:  # the visa feature adds one field; with it off, the schema has no visa_blocked
-    _schema = TRIAGE_TOOL["input_schema"]
-    _props = _schema["properties"]
-    _reason = _props.pop("reason")
-    _reason["description"] = _reason["description"][:-1] + "；visa_blocked 為 true 時要提到簽證。"
-    _props["visa_blocked"] = {
-        "type": "boolean",
-        "description": "職缺原文是否明確表示不提供簽證 sponsor、不支援 OPT／STEM OPT，或要求公民／永久居民身分。只要求「須有美國工作授權」不算。",
+    _props = {
+        "scores": TRIAGE_TOOL["input_schema"]["properties"]["scores"],
+        "custom_family": TRIAGE_TOOL["input_schema"]["properties"]["custom_family"],
+        "visa_blocked": {"type": "boolean", "description": P["visa_blocked_description"]},
+        "reason": {"type": "string", "description": P["reason_description_visa"]},
     }
-    _props["reason"] = _reason
-    _schema["required"] = ["scores", "custom_family", "visa_blocked", "reason"]
+    TRIAGE_TOOL["input_schema"]["properties"] = _props
+    TRIAGE_TOOL["input_schema"]["required"] = ["scores", "custom_family", "visa_blocked", "reason"]
 
 DETAIL_TOOL = {
     "name": "submit_detail",
-    "description": "提交這筆職缺的投遞建議（詳評）。",
+    "description": P["detail_tool_description"],
     "input_schema": {
         "type": "object",
         "properties": {
-            "resume": {
-                "type": "string", "enum": list(TRACKS),
-                "description": "建議使用哪條路線的履歷，只回路線代號，不要解釋。",
-            },
-            "emphasize": {
-                "type": "array", "items": {"type": "string"}, "maxItems": 3,
-                "description": "該強調的經歷與可呼應職缺的用語，最多 3 條，每條不超過 40 字。",
-            },
-            "gaps": {
-                "type": "array", "items": {"type": "string"}, "maxItems": 3,
-                "description": "缺口與風險：職缺要求而求職者沒有的東西，最多 3 條，每條不超過 30 字。",
-            },
+            "resume": {"type": "string", "enum": list(TRACKS), "description": P["resume_description"]},
+            "emphasize": {"type": "array", "items": {"type": "string"}, "maxItems": 3, "description": P["emphasize_description"]},
+            "gaps": {"type": "array", "items": {"type": "string"}, "maxItems": 3, "description": P["gaps_description"]},
         },
         "required": ["resume", "emphasize", "gaps"],
     },
@@ -126,57 +116,17 @@ DETAIL_TOOL = {
 
 SUMMARY_TOOL = {
     "name": "submit_summary",
-    "description": "提交這筆職缺的描述摘要。",
+    "description": P["summary_tool_description"],
     "input_schema": {
         "type": "object",
-        "properties": {
-            "summary": {
-                "type": "string",
-                "description": "職缺描述摘要（繁體中文，2 到 3 句，不超過 150 字）：這個職位做什麼、為誰做、最關鍵的要求。",
-            },
-        },
+        "properties": {"summary": {"type": "string", "description": P["summary_field_description"]}},
         "required": ["summary"],
     },
 }
 
-SUMMARY_INSTRUCTIONS = """\
-你是求職顧問。把使用者給你的職缺描述濃縮成摘要，並呼叫 submit_summary 提交。
-用繁體中文寫 2 到 3 句、不超過 150 字：這個職位做什麼、為誰做（公司或客戶的類型）、最關鍵的要求（年資、技能、必要條件）。
-只根據職缺內容，不要評論求職者適不適合，不要寫福利、公司介紹或平等雇用聲明，也不要臆測職缺沒寫的事。"""
-
-RUBRIC = """\
-你是求職顧問。下面的 <profiles> 是求職者的背景與各條求職路線（每條路線有一個代號）。
-請對使用者給你的職缺，替每條路線各打一個 0 到 5 的整數分，並呼叫 submit_triage 提交。
-
-三個面向合成每條路線一個分數：職稱與角色契合度、實際工作內容契合度、層級與年資是否適合。
-應徵人數已由程式處理，不要評。只根據職缺內容與背景判斷，不要臆測職缺沒寫的事。
-
-分數定義：
-5 = 職稱、工作內容、層級都吻合，履歷能直接拿來投
-4 = 大致吻合，只有小缺口，換個說法或強調不同經歷即可
-3 = 部分吻合，有明顯缺口（技能或經驗），但有機會
-2 = 只有少數面向沾邊，缺口大
-1 = 領域相關但要求差很遠，或層級明顯不合
-0 = 完全不相關
-
-另外判斷 custom_family：職缺是否屬於 shared.md「值得客製的職缺類型」清單中的任一類型。
-reason 用繁體中文一句話，不超過 40 字。"""
-
-VISA_RUBRIC = """
-簽證：求職者持 OPT（目前有合法工作授權，但之後需要雇主 sponsor）。請讀 <job> 和其中的 <visa_excerpts>（取自完整描述的簽證相關片段），設定 visa_blocked：
-- true：原文明確表示不提供簽證 sponsor（含「現在或未來」），或明確不支援 OPT／STEM OPT／CPT／H-1B 申請者，或要求美國公民／永久居民身分。
-- false：其他情況，包括只寫「須具備美國工作授權（authorized to work）」而沒有提到 sponsor 或 OPT 的限制、願意 sponsor、或完全沒提。
-visa_blocked 為 true 時，各條路線的分數仍照常依職缺內容評，程式會把分數壓到 1；reason 要提到簽證。"""
-
-RUBRIC = RUBRIC + ("\n" + VISA_RUBRIC if VISA_ENABLED else "")
-
-DETAIL_INSTRUCTIONS = """\
-你是求職顧問。根據 <profiles>（求職者背景與其最適合的路線）、完整職缺內容與初評結果，
-給這筆職缺的投遞建議。你必須呼叫 submit_detail 提交，不要直接回覆文字。全部用繁體中文，直接寫結論：
-1. resume：建議用哪條路線的履歷，只回路線代號，不要解釋（初評已有理由）。
-2. emphasize：最多 3 條，每條不超過 40 字，寫該強調的經歷與可呼應職缺的用語。
-3. gaps：最多 3 條，每條不超過 30 字，只寫職缺要求而求職者沒有的東西與風險。
-不要複述職缺原文，不要寫工作條件或非缺口的內容，不要寫求職信，也不要臆測職缺沒寫的事。"""
+SUMMARY_INSTRUCTIONS = P["summary_instructions"]
+RUBRIC = P["rubric"] + ("\n\n" + P["visa_rubric"] if VISA_ENABLED else "")
+DETAIL_INSTRUCTIONS = P["detail_instructions"]
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
@@ -212,7 +162,7 @@ def load_profiles(directory: Path = PROFILES_DIR) -> dict:
 def triage_system(profiles: dict) -> list[dict]:
     text = f"{RUBRIC}\n\n<profiles>\n## shared.md\n{profiles['shared']}\n"
     for t, info in TRACKS.items():
-        text += f"\n## 路線 {t}（{info['name']}）\n{profiles['tracks'][t]}\n"
+        text += f"\n{prompts.heading(P['profiles_track_heading'], id=t, name=info['name'])}\n{profiles['tracks'][t]}\n"
     text += "</profiles>"
     return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
 
@@ -221,7 +171,7 @@ def detail_system(profiles: dict, track: str) -> list[dict]:
     info = TRACKS[track]
     text = (
         f"{DETAIL_INSTRUCTIONS}\n\n<profiles>\n## shared.md\n{profiles['shared']}\n"
-        f"\n## 路線 {track}（{info['name']}），履歷檔：{info['resume']}\n{profiles['tracks'][track]}\n</profiles>"
+        f"\n{prompts.heading(P['detail_track_heading'], id=track, name=info['name'], resume=info['resume'])}\n{profiles['tracks'][track]}\n</profiles>"
     )
     return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
 
@@ -382,7 +332,7 @@ def triage_user_prompt(job: dict, chars: int, visa_skip_locations: list[str] | N
     visa_block = ""
     if excerpts:
         visa_block = "\n\n<visa_excerpts>\n" + "\n".join(f"- {e}" for e in excerpts) + "\n</visa_excerpts>"
-    return f"<job>\n{json.dumps(fields, ensure_ascii=False, indent=2)}\n</job>{visa_block}\n\n請呼叫 submit_triage 提交初評。"
+    return f"<job>\n{json.dumps(fields, ensure_ascii=False, indent=2)}\n</job>{visa_block}\n\n{P['triage_request']}"
 
 
 def finalize_triage(raw: dict) -> dict:
@@ -456,9 +406,9 @@ def detail_job(conn, client, config, profiles, usage, job: dict) -> dict | None:
     user = (
         f"<job>\n{json.dumps(full, ensure_ascii=False, indent=2)}\n</job>\n\n"
         f"<triage>\n{json.dumps(triage, ensure_ascii=False, indent=2)}\n</triage>\n\n"
-        + ("此職缺標記為 needs_custom：現有履歷都不完整，請說明以此路線履歷為起點，需要客製哪些部分。\n\n"
+        + (P["detail_custom_note"] + "\n\n"
            if triage["needs_custom"] else "")
-        + "請呼叫 submit_detail 提交投遞建議。"
+        + P["detail_request"]
     )
     result = call_model(client, cfg.get("provider", "anthropic"), model,
                         detail_system(profiles, triage["best_track"]), user,
@@ -481,7 +431,7 @@ def add_details(conn, client, config, profiles, usage, selection: dict) -> None:
 def summarize_job(client, config, usage, job: dict) -> str | None:
     cfg = config["scoring"]
     full = {k: job.get(k) for k in ("title", "company", "location", "description")}
-    user = f"<job>\n{json.dumps(full, ensure_ascii=False, indent=2)}\n</job>\n\n請呼叫 submit_summary 提交摘要。"
+    user = f"<job>\n{json.dumps(full, ensure_ascii=False, indent=2)}\n</job>\n\n{P['summary_request']}"
     system = [{"type": "text", "text": SUMMARY_INSTRUCTIONS}]
     result = call_model(client, cfg.get("provider", "anthropic"), cfg["summary_model"], system, user,
                         SUMMARY_TOOL, validate_summary, usage, max_tokens=500)

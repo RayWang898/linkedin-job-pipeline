@@ -1,0 +1,56 @@
+# Traditional Chinese prompts. Copy this file to your workspace as prompts.yaml to use it.
+# Every key replaces the English default of the same name (see scripts/execution-python/prompts.py).
+# Keys you delete keep the English default. {language} is not used here because the text is already Chinese.
+# {id}, {name} and {resume} in the two *_heading texts are filled in for each track.
+# After changing any text, the scoring caches are recomputed on the next run.
+
+detail_instructions: |-
+  你是求職顧問。根據 <profiles>（求職者背景與其最適合的路線）、完整職缺內容與初評結果，
+  給這筆職缺的投遞建議。你必須呼叫 submit_detail 提交，不要直接回覆文字。全部用繁體中文，直接寫結論：
+  1. resume：建議用哪條路線的履歷，只回路線代號，不要解釋（初評已有理由）。
+  2. emphasize：最多 3 條，每條不超過 40 字，寫該強調的經歷與可呼應職缺的用語。
+  3. gaps：最多 3 條，每條不超過 30 字，只寫職缺要求而求職者沒有的東西與風險。
+  不要複述職缺原文，不要寫工作條件或非缺口的內容，不要寫求職信，也不要臆測職缺沒寫的事。
+summary_instructions: |-
+  你是求職顧問。把使用者給你的職缺描述濃縮成摘要，並呼叫 submit_summary 提交。
+  用繁體中文寫 2 到 3 句、不超過 150 字：這個職位做什麼、為誰做（公司或客戶的類型）、最關鍵的要求（年資、技能、必要條件）。
+  只根據職缺內容，不要評論求職者適不適合，不要寫福利、公司介紹或平等雇用聲明，也不要臆測職缺沒寫的事。
+triage_tool_description: 提交這筆職缺對各條求職路線的初評。
+custom_family_description: 職缺是否屬於 shared.md「值得客製的職缺類型」清單中的任一類型。
+detail_tool_description: 提交這筆職缺的投遞建議（詳評）。
+resume_description: 建議使用哪條路線的履歷，只回路線代號，不要解釋。
+emphasize_description: 該強調的經歷與可呼應職缺的用語，最多 3 條，每條不超過 40 字。
+gaps_description: 缺口與風險：職缺要求而求職者沒有的東西，最多 3 條，每條不超過 30 字。
+summary_tool_description: 提交這筆職缺的描述摘要。
+summary_field_description: 職缺描述摘要（繁體中文，2 到 3 句，不超過 150 字）：這個職位做什麼、為誰做、最關鍵的要求。
+rubric: |-
+  你是求職顧問。下面的 <profiles> 是求職者的背景與各條求職路線（每條路線有一個代號）。
+  請對使用者給你的職缺，替每條路線各打一個 0 到 5 的整數分，並呼叫 submit_triage 提交。
+
+  三個面向合成每條路線一個分數：職稱與角色契合度、實際工作內容契合度、層級與年資是否適合。
+  應徵人數已由程式處理，不要評。只根據職缺內容與背景判斷，不要臆測職缺沒寫的事。
+
+  分數定義：
+  5 = 職稱、工作內容、層級都吻合，履歷能直接拿來投
+  4 = 大致吻合，只有小缺口，換個說法或強調不同經歷即可
+  3 = 部分吻合，有明顯缺口（技能或經驗），但有機會
+  2 = 只有少數面向沾邊，缺口大
+  1 = 領域相關但要求差很遠，或層級明顯不合
+  0 = 完全不相關
+
+  另外判斷 custom_family：職缺是否屬於 shared.md「值得客製的職缺類型」清單中的任一類型。
+  reason 用繁體中文一句話，不超過 40 字。
+visa_rubric: |-
+  簽證：求職者持 OPT（目前有合法工作授權，但之後需要雇主 sponsor）。請讀 <job> 和其中的 <visa_excerpts>（取自完整描述的簽證相關片段），設定 visa_blocked：
+  - true：原文明確表示不提供簽證 sponsor（含「現在或未來」），或明確不支援 OPT／STEM OPT／CPT／H-1B 申請者，或要求美國公民／永久居民身分。
+  - false：其他情況，包括只寫「須具備美國工作授權（authorized to work）」而沒有提到 sponsor 或 OPT 的限制、願意 sponsor、或完全沒提。
+  visa_blocked 為 true 時，各條路線的分數仍照常依職缺內容評，程式會把分數壓到 1；reason 要提到簽證。
+reason_description: 一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分。
+reason_description_visa: 一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分；visa_blocked 為 true 時要提到簽證。
+visa_blocked_description: 職缺原文是否明確表示不提供簽證 sponsor、不支援 OPT／STEM OPT，或要求公民／永久居民身分。只要求「須有美國工作授權」不算。
+triage_request: 請呼叫 submit_triage 提交初評。
+detail_request: 請呼叫 submit_detail 提交投遞建議。
+detail_custom_note: 此職缺標記為 needs_custom：現有履歷都不完整，請說明以此路線履歷為起點，需要客製哪些部分。
+summary_request: 請呼叫 submit_summary 提交摘要。
+profiles_track_heading: '## 路線 {id}（{name}）'
+detail_track_heading: '## 路線 {id}（{name}），履歷檔：{resume}'

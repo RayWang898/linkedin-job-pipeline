@@ -115,6 +115,7 @@ scoring:
   triage_model: "claude-haiku-4-5-20251001"   # scores every job
   detail_model: "claude-sonnet-5-5"           # detailed advice, shortlisted jobs only
   summary_model: "claude-haiku-4-5-20251001"  # short job summary for shortlisted jobs
+  output_language: "English"       # language the models write reasons, advice and summaries in
   triage_description_chars: 2500   # how much of the description the triage model sees
   shortlist_min_score: 4           # best track score needed for the main shortlist
   custom_min_score: 3              # minimum best score for the "needs custom resume" section
