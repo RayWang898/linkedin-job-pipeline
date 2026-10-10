@@ -67,6 +67,18 @@ exclude_staffing_agencies: true
 staffing_agency_blacklist:
   - "Example Staffing Co"
 
+# Optional: skip jobs you already applied to or decided against. tracker_path is a text file with one line
+# per status, each line starting with that status's word and a colon (":" or the full-width "：").
+# An entry is "title · company"; several entries on one line are separated by the full-width "｜".
+#   Applied: Marketing Coordinator · Acme Corp｜Project Manager · Beta Inc
+#   Evaluated, skipped: Account Supervisor · Gamma LLC
+# A job with the same company and title is dropped (reason already_in_tracker). The same company with a
+# different title is kept and the note lists the earlier entries.
+# tracker_path: "tracker.txt"
+# tracker_labels:            # the word before the colon for each status (defaults shown)
+#   applied: "Applied"
+#   evaluated_skip: "Evaluated, skipped"
+
 # ---------------------------------------------------------------------------
 # Step 1 fetch (fetch.py)
 # ---------------------------------------------------------------------------

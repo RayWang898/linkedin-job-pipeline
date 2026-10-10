@@ -237,7 +237,16 @@ def passes_min_years(job: dict, config: dict) -> bool:
 
 
 COMPANY_SUFFIXES ={"inc", "llc", "ltd", "corp", "co", "company"}
-TRACKER_STATUS = {"已投遞": "applied", "已評估不投": "evaluated_skip"}
+DEFAULT_TRACKER_LABELS = {"applied": "Applied", "evaluated_skip": "Evaluated, skipped"}
+
+
+def tracker_labels(config: dict) -> dict:
+    """{status: the word that starts a line of the tracker file}. Defaults are English; config.yaml `tracker_labels` overrides them."""
+    labels = {**DEFAULT_TRACKER_LABELS, **(config.get("tracker_labels") or {})}
+    bad = [k for k in labels if k not in DEFAULT_TRACKER_LABELS]
+    if bad or not all(isinstance(v, str) and v.strip() for v in labels.values()):
+        sys.exit(f"config.yaml: tracker_labels may only set {', '.join(DEFAULT_TRACKER_LABELS)} to non-empty text.")
+    return labels
 
 
 def normalize_text(text: str, drop_company_suffix: bool = False) -> str:
@@ -248,14 +257,15 @@ def normalize_text(text: str, drop_company_suffix: bool = False) -> str:
     return " ".join(words)
 
 
-def load_tracker(path: Path) -> list[dict]:
+def load_tracker(path: Path, labels: dict) -> list[dict]:
     if not path.exists():
         print(f"  ⚠️ 找不到投遞紀錄 {path}，略過投遞紀錄查重。")
         return []
+    status_by_label = {word.strip(): status for status, word in labels.items()}
     entries = []
     for line in path.read_text(encoding="utf-8").splitlines():
         label, sep, body = re.split(r"([:：])", line, maxsplit=1) if re.search(r"[:：]", line) else (line, "", "")
-        status = TRACKER_STATUS.get(label.strip())
+        status = status_by_label.get(label.strip())
         if not status:
             continue
         for item in body.split("｜"):
@@ -308,7 +318,7 @@ def filter_batch(jobs: list[dict], config: dict, conn: sqlite3.Connection) -> di
     excluded_by_reason: dict[str, list[dict]] = {}
 
     center = geocode(config["location_center_address"], conn)
-    tracker = load_tracker(Path(config["tracker_path"])) if config.get("tracker_path") else []
+    tracker = load_tracker(Path(config["tracker_path"]), tracker_labels(config)) if config.get("tracker_path") else []
 
     for job in jobs:
         reason = filter_job(job, config)

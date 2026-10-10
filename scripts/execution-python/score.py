@@ -27,8 +27,9 @@ import yaml
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import prompts
+import texts
 from dedup import init_db
-from filter import effective_applicant_count, visa_settings
+from filter import effective_applicant_count, tracker_labels, visa_settings
 
 DATA_DIR = Path("data")
 FILTERED_DIR = DATA_DIR / "4_filtered"
@@ -68,8 +69,12 @@ TRACKS = load_tracks()
 with CONFIG_PATH.open(encoding="utf-8") as _f:
     _config = yaml.safe_load(_f)
 VISA_ENABLED = visa_settings(_config)["enabled"]
+TRACKER_LABELS = tracker_labels(_config)
 OUTPUT_LANGUAGE = (_config.get("scoring") or {}).get("output_language") or "English"
 P = prompts.load(OUTPUT_LANGUAGE)  # all model-facing text; see prompts.py
+TX = texts.load()  # display text for notes, summary file and notification; see texts.py
+fill = texts.fill
+LEGACY_USAGE_PREFIX = "API 用量："  # summary files written before texts.py used this label; still recognized when re-running a day
 SHARED_FILE = "shared.md"
 UNKNOWN_APPLICANTS = 10**9  # 應徵人數未知時，排序放最後
 
@@ -193,9 +198,9 @@ class Usage:
 
     def line(self) -> str:
         t = self.tokens
-        retries = f"；失敗 {len(self.failures)} 次" if self.failures else ""
-        return (f"{self.calls} 次呼叫{retries}；輸入 {t['input_tokens']}、輸出 {t['output_tokens']}、"
-                f"快取寫入 {t['cache_creation_input_tokens']}、快取讀取 {t['cache_read_input_tokens']} tokens")
+        retries = fill(TX["usage_retries"], n=len(self.failures)) if self.failures else ""
+        return fill(TX["usage_line"], calls=self.calls, retries=retries, input=t["input_tokens"], output=t["output_tokens"],
+                    cache_write=t["cache_creation_input_tokens"], cache_read=t["cache_read_input_tokens"])
 
 
 def call_model(client, provider: str, model: str, system: list[dict], user: str,
@@ -463,32 +468,33 @@ def _count(path: Path) -> int | None:
         return len(json.load(f))
 
 
-PRE_STAGES = (("抓取（瘦身後）", "2_slim"), ("去重後", "3_deduped"), ("篩選後", "4_filtered"))
+PRE_STAGES = (("stage_fetched", "2_slim"), ("stage_deduped", "3_deduped"), ("stage_filtered", "4_filtered"))
 
 
 def pipeline_counts(name: str, data_dir: Path = DATA_DIR) -> list[tuple[str, int]]:
-    counts = ((label, _count(data_dir / folder / name)) for label, folder in PRE_STAGES)
+    counts = ((TX[key], _count(data_dir / folder / name)) for key, folder in PRE_STAGES)
     return [(label, n) for label, n in counts if n is not None]
 
 
 def pipeline_stats(name: str, data_dir: Path = DATA_DIR) -> list[str]:
-    """用各步驟同檔名的輸出算出當天流程統計；缺檔的步驟略過。"""
+    """Per-day pipeline counts computed from each step's output file of the same name; steps with no file are skipped."""
     lines = []
     for label, n in pipeline_counts(name, data_dir):
-        lines.append(f"{label}：{n}")
+        lines.append(fill(TX["stat_line"], label=label, n=n))
     excluded_path = data_dir / "5_excluded" / name
     if excluded_path.exists():
         with excluded_path.open(encoding="utf-8") as f:
             reasons = Counter(r["reason"] for r in json.load(f))
         if reasons:
-            lines.append("Step 4 排除：" + "、".join(f"{k} {v}" for k, v in reasons.most_common()))
+            items = TX["stat_excluded_separator"].join(fill(TX["stat_excluded_item"], reason=k, n=v) for k, v in reasons.most_common())
+            lines.append(fill(TX["stat_excluded"], items=items))
     return lines
 
 
 def salary_text(salary) -> str:
     if isinstance(salary, dict):
-        return salary.get("text") or "未揭露"
-    return salary or "未揭露"
+        return salary.get("text") or TX["salary_undisclosed"]
+    return salary or TX["salary_undisclosed"]
 
 
 def slug(text: str, limit: int = 60) -> str:
@@ -609,7 +615,7 @@ def job_frontmatter(rank: int | None, job: dict, run_date: str, scraped_date: st
         ("resume", job.get("resume_file") or (TRACKS[detail["resume"]]["resume"] if detail else None)),  # resume_file：手動指定的客製履歷
         ("location", job.get("location")),
         ("salary", salary_text(job.get("salaryDetails"))),
-        ("applicants", (job.get("applicantsDetails") or {}).get("text", "未知") if source == "linkedin" else None),
+        ("applicants", (job.get("applicantsDetails") or {}).get("text", TX["applicants_unknown"]) if source == "linkedin" else None),
         ("url", job.get("jobUrl")),
         ("jobId", job["jobId"] if source == "linkedin" else None),
     ]
@@ -632,53 +638,54 @@ def format_job_note(rank: int | None, job: dict, run_date: str, scraped_date: st
                     user_note: str = "", interest: str = "") -> str:
     tr = job["triage"]
     best = TRACKS[tr["best_track"]]
-    score_line = "　".join(f"{t} {tr['scores'][t]}" for t in TRACKS)
+    score_line = TX["scores_separator"].join(f"{t} {tr['scores'][t]}" for t in TRACKS)
     lines = job_frontmatter(rank, job, run_date, scraped_date, status, user_note, interest)
     lines += [
         "",
         f"# {job['title']} — {job['company']}",
         "",
-        f"- 最佳：{tr['best_track']} {best['name']} {tr['best_score']} 分　各路線：{score_line}",
-        f"- 連結：[LinkedIn 職缺]({job.get('jobUrl')})" if job.get("jobUrl") else "- 連結：無",
-        f"- 初評理由：{tr['reason']}",
+        fill(TX["note_best"], track=tr["best_track"], name=best["name"], score=tr["best_score"], scores=score_line),
+        fill(TX["note_link"], url=job.get("jobUrl")) if job.get("jobUrl") else TX["note_no_link"],
+        fill(TX["note_reason"], reason=tr["reason"]),
     ]
     for e in job.get("tracker_company_match") or []:
-        label = "已投遞" if e["status"] == "applied" else "已評估不投"
-        lines.append(f"- 同公司過去：{e['title']}（{label}）")
+        label = TRACKER_LABELS[e["status"]]
+        lines.append(fill(TX["note_same_company"], title=e["title"], label=label))
     if job.get("summary"):
         lines += ["", "## SUMMARY", "", job["summary"]]
     detail = job.get("detail")
     if detail:
         lines += [
             "",
-            "## 詳評",
+            TX["note_detail_heading"],
             "",
-            f"- 建議履歷：{detail['resume']} {TRACKS[detail['resume']]['name']}（{TRACKS[detail['resume']]['resume']}）",
-            "- 強調：" + "；".join(detail["emphasize"]),
-            "- 缺口：" + "；".join(detail["gaps"]),
+            fill(TX["note_detail_resume"], track=detail["resume"], name=TRACKS[detail["resume"]]["name"], resume=TRACKS[detail["resume"]]["resume"]),
+            fill(TX["note_detail_emphasize"], items=TX["list_separator"].join(detail["emphasize"])),
+            fill(TX["note_detail_gaps"], items=TX["list_separator"].join(detail["gaps"])),
         ]
-    lines += ["", "## 原始職缺描述", "", job.get("description") or "（無描述）", ""]
+    lines += ["", TX["note_description_heading"], "", job.get("description") or TX["note_no_description"], ""]
     return "\n".join(lines)
 
 
 def track_table(scored: list[dict], selection: dict, pre_counts: list[tuple[str, int]]) -> list[str]:
-    """各條路線在各階段的筆數。抓取到篩選階段還沒評分，沒有路線可分，只列總筆數。"""
+    """Per-track counts at each stage. Fetch to filter are not scored yet, so they only get a total."""
     picks = selection["main"] + selection["custom"]
+    # (label, test, jobs, add_up): "track score >= N" can count a job under several tracks, so it has no total
     stages = [
-        ("初評（最佳路線）", lambda j, t: j["triage"]["best_track"] == t, scored),
-        ("該路線 >= 3 分", lambda j, t: j["triage"]["scores"][t] >= 3, scored),
-        ("該路線 >= 4 分", lambda j, t: j["triage"]["scores"][t] >= 4, scored),
-        ("短名單（最佳路線）", lambda j, t: j["triage"]["best_track"] == t, picks),
-        ("詳評（最佳路線）", lambda j, t: j["triage"]["best_track"] == t, [j for j in picks if j.get("detail")]),
-        ("詳評建議履歷", lambda j, t: j["detail"]["resume"] == t, [j for j in picks if j.get("detail")]),
+        (TX["table_triage_best"], lambda j, t: j["triage"]["best_track"] == t, scored, True),
+        (TX["table_min3"], lambda j, t: j["triage"]["scores"][t] >= 3, scored, False),
+        (TX["table_min4"], lambda j, t: j["triage"]["scores"][t] >= 4, scored, False),
+        (TX["table_shortlist_best"], lambda j, t: j["triage"]["best_track"] == t, picks, True),
+        (TX["table_detail_best"], lambda j, t: j["triage"]["best_track"] == t, [j for j in picks if j.get("detail")], True),
+        (TX["table_detail_resume"], lambda j, t: j["detail"]["resume"] == t, [j for j in picks if j.get("detail")], True),
     ]
-    lines = ["| 階段 | " + " | ".join(f"{t} {TRACKS[t]['name']}" for t in TRACKS) + " | 總筆數 |",
+    lines = [f"| {TX['table_stage']} | " + " | ".join(f"{t} {TRACKS[t]['name']}" for t in TRACKS) + f" | {TX['table_total']} |",
              "| --- |" + " --- |" * (len(TRACKS) + 1)]
     for label, n in pre_counts:
         lines.append(f"| {label} |" + " — |" * len(TRACKS) + f" {n} |")
-    for label, test, jobs in stages:
+    for label, test, jobs, add_up in stages:
         counts = [sum(1 for j in jobs if test(j, t)) for t in TRACKS]
-        total = len(jobs) if label.endswith(("最佳路線）", "建議履歷")) else "—"  # 「>= N 分」可跨路線重複計，不加總
+        total = len(jobs) if add_up else "—"
         lines.append(f"| {label} | " + " | ".join(map(str, counts)) + f" | {total} |")
     return lines
 
@@ -692,21 +699,21 @@ def read_stage_jobs(name: str, folder: str, data_dir: Path = DATA_DIR) -> list[d
 
 
 def query_table(name: str, scored: list[dict], selection: dict, query_names: list[str]) -> list[str]:
-    """每組搜尋抓到的職缺在各階段的筆數。同一筆被多組抓到時每組都算一次，所以各列加起來會超過總筆數。"""
+    """Jobs found by each search query at each stage. A job found by several queries counts once per query, so rows add up to more than the total."""
     slim = read_stage_jobs(name, "2_slim")
     if not any(j.get("matched_queries") for j in slim):
-        return []  # 舊資料沒有記錄來源搜尋
+        return []  # older data did not record which query found a job
     labels = sorted({q for j in slim for q in j["matched_queries"]})
     stages = [
-        ("抓取", slim),
-        ("去重後", read_stage_jobs(name, "3_deduped")),
-        ("篩選後", read_stage_jobs(name, "4_filtered")),
-        ("初評 >= 4 分", [j for j in scored if j["triage"]["best_score"] >= 4]),
-        ("短名單", selection["main"] + selection["custom"]),
+        (TX["query_stage_fetched"], slim),
+        (TX["query_stage_deduped"], read_stage_jobs(name, "3_deduped")),
+        (TX["query_stage_filtered"], read_stage_jobs(name, "4_filtered")),
+        (TX["query_stage_triage4"], [j for j in scored if j["triage"]["best_score"] >= 4]),
+        (TX["query_stage_shortlist"], selection["main"] + selection["custom"]),
     ]
     def hit(job, label):
         return label in (job.get("matched_queries") or [])
-    lines = ["| 搜尋組別 | " + " | ".join(["獨有（只有這組抓到）"] + [s for s, _ in stages]) + " |",
+    lines = [f"| {TX['query_table_query']} | " + " | ".join([TX["query_table_unique"]] + [s for s, _ in stages]) + " |",
              "| --- |" + " --- |" * (len(stages) + 1)]
     for label in labels:
         i = ord(label) - ord("A")
@@ -714,27 +721,27 @@ def query_table(name: str, scored: list[dict], selection: dict, query_names: lis
         unique = sum(1 for j in slim if j["matched_queries"] == [label])
         lines.append(f"| {title} | {unique} | " + " | ".join(
             str(sum(1 for j in jobs if hit(j, label))) for _, jobs in stages) + " |")
-    lines.append("| 全部（不重複） | — | " + " | ".join(str(len(jobs)) for _, jobs in stages) + " |")
+    lines.append(f"| {TX['query_table_all']} | — | " + " | ".join(str(len(jobs)) for _, jobs in stages) + " |")
     return lines
 
 
 def format_summary(run_date: str, stats: list[str], usages: dict[str, Usage], selection: dict,
                    scored: list[dict], pre_counts: list[tuple[str, int]],
                    queries_table: list[str], previous_usage_lines: list[str] | None = None) -> str:
-    lines = [f"# 每日職缺短名單統計 {run_date}", ""]
-    lines += [f"- 短名單：一般 {len(selection['main'])}、需客製 {len(selection['custom'])}"]
+    lines = [fill(TX["summary_title"], date=run_date), ""]
+    lines += [fill(TX["summary_shortlist"], main=len(selection["main"]), custom=len(selection["custom"]))]
     lines += [f"- {s}" for s in stats]
     blocked = [j for j in scored if j["triage"].get("visa_blocked")]
-    if blocked:  # 簽證判定是靜默降分，列出來方便檢查有沒有誤判
-        lines += [f"- 初評判定簽證不符（分數壓為 1）：{len(blocked)} 筆"]
-        lines += [f"  - {j['company']}｜{j['title']}：{j['triage']['reason']}" for j in blocked[:30]]
-    lines += ["", "## 各路線筆數", ""] + track_table(scored, selection, pre_counts) + [""]
+    if blocked:  # the visa judgment lowers scores silently, so list the jobs to make wrong calls easy to spot
+        lines += [fill(TX["summary_visa_blocked"], n=len(blocked))]
+        lines += [fill(TX["summary_visa_item"], company=j["company"], title=j["title"], reason=j["triage"]["reason"]) for j in blocked[:30]]
+    lines += ["", TX["summary_tracks_heading"], ""] + track_table(scored, selection, pre_counts) + [""]
     if queries_table:
-        lines += ["## 各搜尋組別筆數", ""] + queries_table + [""]
+        lines += [TX["summary_queries_heading"], ""] + queries_table + [""]
     if previous_usage_lines and not any(u.calls for u in usages.values()):
-        lines += previous_usage_lines  # 重跑全靠快取時，保留當天原本真正花掉的用量
+        lines += previous_usage_lines  # a rerun served entirely from cache keeps the usage the day really cost
     else:
-        lines += [f"- {label} API 用量：{u.line()}" for label, u in usages.items()]
+        lines += [fill(TX["usage_item"], label=TX[f"usage_{key}"], prefix=TX["usage_prefix"], usage=u.line()) for key, u in usages.items()]
     lines.append("")
     return "\n".join(lines)
 
@@ -769,7 +776,7 @@ def write_shortlist(selection: dict, scored: list[dict], run_date: str, scraped_
     summary_path = day_dir / summary_name
     previous = []
     if summary_path.exists():
-        previous = [l for l in summary_path.read_text(encoding="utf-8").splitlines() if "API 用量：" in l]
+        previous = [l for l in summary_path.read_text(encoding="utf-8").splitlines() if TX["usage_prefix"] in l or LEGACY_USAGE_PREFIX in l]
     summary_path.write_text(
         format_summary(run_date, stats, usages, selection, scored, pre_counts, queries_table, previous), encoding="utf-8")
     return day_dir
@@ -786,10 +793,10 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
     if limit:
         jobs = jobs[:limit]
 
-    usages = {"初評": Usage(), "詳評": Usage(), "摘要": Usage()}
+    usages = {"triage": Usage(), "detail": Usage(), "summary": Usage()}
     scored = []
     for job in jobs:
-        triage = triage_job(conn, client, config, profiles, usages["初評"], job)
+        triage = triage_job(conn, client, config, profiles, usages["triage"], job)
         if triage is None:
             print(f"  ⚠️ 跳過 {job['jobId']}「{job.get('title')}」（初評失敗，下次重評）")
             continue
@@ -800,8 +807,8 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
                                  config["scoring"].get("custom_min_score", 3))
     folder_name = date.today().isoformat() + (f"-{folder_suffix}" if folder_suffix else "")
     if detail:
-        add_details(conn, client, config, profiles, usages["詳評"], selection)
-    add_summaries(client, config, usages["摘要"], selection, SHORTLIST_DIR / folder_name)
+        add_details(conn, client, config, profiles, usages["detail"], selection)
+    add_summaries(client, config, usages["summary"], selection, SHORTLIST_DIR / folder_name)
 
     SCORED_DIR.mkdir(parents=True, exist_ok=True)
     SHORTLIST_DIR.mkdir(parents=True, exist_ok=True)
@@ -832,7 +839,7 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
     print(f"輸入筆數：{len(jobs)}，初評成功：{len(scored)}")
     print(f"短名單：一般 {len(selection['main'])}、需客製 {len(selection['custom'])}")
     for label, u in usages.items():
-        print(f"{label}用量：{u.line()}")
+        print(f"{label} usage: {u.line()}")
     print(f"已存檔至：{SCORED_DIR / path.name}、{shortlist_path}")
     print("-" * 50)
 

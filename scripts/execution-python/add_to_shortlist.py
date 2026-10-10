@@ -125,16 +125,16 @@ if __name__ == "__main__":
     client = anthropic.Anthropic()
     conn = score.init_db(args.db)
     score.init_score_tables(conn)
-    usages = {"初評": score.Usage(), "詳評": score.Usage(), "摘要": score.Usage()}
+    usages = {"triage": score.Usage(), "detail": score.Usage(), "summary": score.Usage()}
 
-    triage = score.triage_job(conn, client, config, profiles, usages["初評"], job)
+    triage = score.triage_job(conn, client, config, profiles, usages["triage"], job)
     if triage is None:
         sys.exit("初評失敗，沒有寫入。")
     job = {**job, "triage": triage}
     if reuse and (custom_resume := score.read_frontmatter(md).get("resume")):
         job["resume_file"] = custom_resume  # 使用者已放進資料夾的客製履歷，不被路線預設履歷蓋掉
-    job["detail"] = score.detail_job(conn, client, config, profiles, usages["詳評"], job)
-    job["summary"] = score.summarize_job(client, config, usages["摘要"], job)
+    job["detail"] = score.detail_job(conn, client, config, profiles, usages["detail"], job)
+    job["summary"] = score.summarize_job(client, config, usages["summary"], job)
 
     folder.mkdir(exist_ok=True)
     md.write_text(score.format_job_note(rank, job, args.date, scraped_date, status, user_note, interest), encoding="utf-8")
@@ -148,4 +148,4 @@ if __name__ == "__main__":
 
     print(f"已寫入：{folder}/{folder.name}.md（rank {rank or '無'}，最佳 {triage['best_track']} {triage['best_score']} 分）")
     for label, u in usages.items():
-        print(f"{label}用量：{u.line()}")
+        print(f"{label} usage: {u.line()}")

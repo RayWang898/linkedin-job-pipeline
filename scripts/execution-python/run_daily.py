@@ -32,6 +32,8 @@ import fetch  # noqa: E402
 import score  # noqa: E402
 from dedup import init_db  # noqa: E402
 
+TX, fill = score.TX, score.fill
+
 LOG_DIR = Path("logs")
 DB_PATH = Path("jobs.db")
 CONFIG_PATH = Path("config.yaml")
@@ -159,23 +161,23 @@ def write_calibration(run_date: str) -> None:
 
 def fmt_tokens(tokens: dict) -> str:
     inp = tokens.get("input_tokens", 0) + tokens.get("cache_creation_input_tokens", 0) + tokens.get("cache_read_input_tokens", 0)
-    return f"輸入 {inp / 1000:.1f}k／輸出 {tokens.get('output_tokens', 0) / 1000:.1f}k"
+    return fill(TX["notify_tokens_value"], input=f"{inp / 1000:.1f}", output=f"{tokens.get('output_tokens', 0) / 1000:.1f}")
 
 
 def success_message(stats: dict, failed_queries: list[str], gap: int | None) -> str:
     total = stats["main"] + stats["custom"]
-    tracks = "・".join(f"{t} {stats['by_track'].get(t, 0)}" for t in score.TRACKS)
-    parts = [f"短名單 {total} 筆", tracks]
+    tracks = TX["notify_tracks_separator"].join(f"{t} {stats['by_track'].get(t, 0)}" for t in score.TRACKS)
+    parts = [fill(TX["notify_shortlist"], n=total), tracks]
     if stats["custom"]:
-        parts.append(f"需客製 {stats['custom']}")
-    parts.append(f"tokens {fmt_tokens(stats['tokens'])}")
+        parts.append(fill(TX["notify_custom"], n=stats["custom"]))
+    parts.append(fill(TX["notify_tokens"], tokens=fmt_tokens(stats["tokens"])))
     if stats.get("failures"):
-        parts.append(f"評分失敗 {stats['failures']} 次")
+        parts.append(fill(TX["notify_scoring_failures"], n=stats["failures"]))
     if failed_queries:
-        parts.append(f"抓取不完整，缺 {'、'.join(failed_queries)} 組")
+        parts.append(fill(TX["notify_fetch_incomplete"], queries=TX["notify_queries_separator"].join(failed_queries)))
     if gap and gap > 1:
-        parts.append(f"距上次成功 {gap} 天")
-    return "｜".join(parts)
+        parts.append(fill(TX["notify_gap"], n=gap))
+    return TX["notify_separator"].join(parts)
 
 
 def notify(topic: str | None, message: str, failure: bool = False) -> None:
@@ -283,12 +285,12 @@ def main() -> int:
         log(f"❌ 失敗：{e}")
         finish_run(conn, run_date, "failed", error=str(e))
         if not args.no_notify:
-            notify(topic, f"每日執行失敗：{e.step}（{e.detail}）", failure=True)
+            notify(topic, fill(TX["notify_failed"], step=e.step, detail=e.detail), failure=True)
         return 1
     except Exception as e:  # 預期外的錯誤也要通知，不然你只會看到沉默
         log(f"❌ 預期外錯誤：{e!r}")
         finish_run(conn, run_date, "failed", error=repr(e))
-        notify(topic, f"每日執行發生預期外錯誤：{e!r}", failure=True)
+        notify(topic, fill(TX["notify_unexpected"], error=repr(e)), failure=True)
         return 1
 
     stats = result["stats"]

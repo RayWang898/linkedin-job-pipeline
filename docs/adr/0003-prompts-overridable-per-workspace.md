@@ -9,4 +9,6 @@ Measured while doing this (100 jobs, same seed, Haiku): running the same Chinese
 Consequences:
 - Changing a prompt invalidates the cached scores (hashes include the text), as before.
 - Compare prompt changes against a rerun of the old prompts, never against stored scores: stored scores predate features and come from a sample picked for being high, which biases the comparison.
-- Static labels in the output notes (headings such as the detailed-review section) are not part of this yet. They still need an English default and the same override, and existing Chinese notes must keep working.
+- Display text (note labels, the daily summary file, the phone notification) follows the same pattern in `texts.py` and an optional `texts.yaml`, kept separate because it never affects scoring or the cache. With `texts.example/zh-TW.yaml` loaded, notes, the summary file and the notification text match the old Chinese output byte for byte (checked on 339 scored jobs). Existing Chinese notes stay readable: the program only reads English front-matter keys, `## SUMMARY`, `interest` and `user note`, and a rerun still recognizes the old Chinese usage lines in a summary file.
+- The words that start a tracker line (`Applied`, `Evaluated, skipped`) are `tracker_labels` in config.yaml, English by default.
+- Console output, error messages and the details inside failure notifications are English only.

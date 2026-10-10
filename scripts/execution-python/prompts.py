@@ -8,12 +8,9 @@ the default. `{language}` in a text is replaced by `scoring.output_language` fro
 Changing any text changes the scoring hashes, so cached scores are recomputed on the next run.
 """
 
-import sys
 from pathlib import Path
 
-import yaml
-
-import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
+from overrides import fill, load_overrides
 
 PROMPTS_PATH = Path("prompts.yaml")
 
@@ -78,24 +75,10 @@ Use only what the posting says. Do not comment on whether the candidate is a fit
 
 def load(language: str = "English") -> dict:
     """DEFAULTS with the workspace's prompts.yaml applied, and {language} filled in."""
-    texts = dict(DEFAULTS)
-    if PROMPTS_PATH.exists():
-        with PROMPTS_PATH.open(encoding="utf-8") as f:
-            override = yaml.safe_load(f) or {}
-        if not isinstance(override, dict):
-            sys.exit(f"{PROMPTS_PATH}: expected a mapping of prompt names to text.")
-        unknown = sorted(set(override) - set(DEFAULTS))
-        if unknown:
-            sys.exit(f"{PROMPTS_PATH}: unknown prompt names: {', '.join(unknown)}. Valid names: {', '.join(DEFAULTS)}.")
-        bad = sorted(k for k, v in override.items() if not isinstance(v, str) or not v.strip())
-        if bad:
-            sys.exit(f"{PROMPTS_PATH}: these prompts must be non-empty text: {', '.join(bad)}.")
-        texts.update(override)
+    texts = load_overrides(PROMPTS_PATH, DEFAULTS)
     return {k: v.replace("{language}", language) for k, v in texts.items()}
 
 
 def heading(template: str, **values: str) -> str:
-    """Fill {id}, {name}, {resume} in a heading text (plain replace, so other braces are left alone)."""
-    for key, value in values.items():
-        template = template.replace("{" + key + "}", value)
-    return template
+    """Fill {id}, {name}, {resume} in a heading text."""
+    return fill(template, **values)
