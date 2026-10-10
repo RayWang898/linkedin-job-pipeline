@@ -16,7 +16,6 @@ List the projects and roles you would put on any resume. For each one, write wha
 Tools, software and languages you can back up in an interview. List only what you can do.
 
 ## Job types worth a custom resume (needs_custom)
-<!-- 值得客製的職缺類型 -->
 Describe job types that fit you but are not fully covered by any of your base resumes. A job in one of these types gets flagged "needs custom resume".
 - Example: Roles in healthcare communications, where the base resumes do not show regulated-content experience.
 

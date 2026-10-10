@@ -1,14 +1,14 @@
 """
-階段五、六：AI 評分並產出短名單。
-Step 5 初評：讀 data/4_filtered/*.json，用 Haiku 對各條路線各給 0-5 分（profiles/ 提供背景）。
-Step 6 輸出：依初評挑出短名單，對入選職缺做詳評（Sonnet），每筆職缺寫成 data/7_shortlist/<執行日>/<排名>_<公司>_<職稱>/<同名>.md，
-並在 jobs.db 填上 recommended_date。
-初評結果快取在 jobs.db 的 triage_scores 表（jobId + profiles 雜湊 + 模型都相同才沿用），
-詳評結果快取在 detail_reviews 表。
-設計見 architecture/05_scoring.md、06_output.md。
+Stages 5 and 6: AI scoring and the shortlist output.
+Step 5 triage: read data/4_filtered/*.json and give each track a 0-5 score with Haiku (profiles/ provides the background).
+Step 6 output: pick the shortlist from the triage, run the detailed review (Sonnet) on the chosen jobs, and write each job to data/7_shortlist/<run date>/<rank>_<company>_<title>/<same name>.md,
+and fill recommended_date in jobs.db.
+Triage results are cached in the triage_scores table of jobs.db (reused only when jobId, profiles hash and model all match);
+detailed-review results are cached in the detail_reviews table.
+See docs/adr/ for the design decisions.
 
-用法：venv/bin/python scripts/execution-python/score.py [--db test.db] [--limit N] [--no-detail]
-需要環境變數 ANTHROPIC_API_KEY（可放在 .env）。
+Usage: venv/bin/python scripts/execution-python/score.py [--db test.db] [--limit N] [--no-detail]
+Needs the environment variable ANTHROPIC_API_KEY (can be set in .env).
 """
 
 import argparse
@@ -76,7 +76,7 @@ TX = texts.load()  # display text for notes, summary file and notification; see 
 fill = texts.fill
 LEGACY_USAGE_PREFIX = "API 用量："  # summary files written before texts.py used this label; still recognized when re-running a day
 SHARED_FILE = "shared.md"
-UNKNOWN_APPLICANTS = 10**9  # 應徵人數未知時，排序放最後
+UNKNOWN_APPLICANTS = 10**9  # unknown applicant count sorts last
 
 TRIAGE_TOOL = {
     "name": "submit_triage",
@@ -144,7 +144,7 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
 # ---------- profiles ----------
 
 def load_profiles(directory: Path = PROFILES_DIR) -> dict:
-    """回傳 {'shared': str, 'tracks': {'A': str, ...}, 'hash': str}。triage_hash／detail_hash 各涵蓋 profiles 加上該階段的規則文字（初評規則、詳評規則與工具定義）。"""
+    """Return {'shared': str, 'tracks': {'A': str, ...}, 'hash': str}. triage_hash and detail_hash each cover the profiles plus that stage's rule text (triage rules, detail rules and tool definitions)."""
     needed = {SHARED_FILE: "shared profile", **{info["file"]: f"profile for track {t}" for t, info in TRACKS.items()}}
     for name, what in needed.items():
         if not (directory / name).is_file():
@@ -181,7 +181,7 @@ def detail_system(profiles: dict, track: str) -> list[dict]:
     return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
 
 
-# ---------- 模型呼叫（集中在此；換模型或供應商只改這裡與 config） ----------
+# ---------- model calls (all in one place; to change model or provider, change only this and the config) ----------
 
 class Usage:
     FIELDS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
@@ -206,12 +206,12 @@ class Usage:
 def call_model(client, provider: str, model: str, system: list[dict], user: str,
                tool: dict, validate, usage: Usage, max_tokens: int = 1024,
                force_tool: bool = True) -> dict | None:
-    """呼叫模型並回傳 tool 的輸入；失敗（含格式錯誤）重試一次，仍失敗回傳 None。
+    """Call the model and return the tool input; a failure (including a malformed answer) is retried once, then None is returned.
 
-    force_tool=False 時用 auto，模型靠 prompt 呼叫工具（部分模型不支援強制指定）。
+    With force_tool=False the model gets tool_choice auto and calls the tool because the prompt asks it to (some models cannot be forced).
     """
     if provider != "anthropic":
-        raise NotImplementedError(f"尚未實作供應商：{provider}")
+        raise NotImplementedError(f"Provider not implemented: {provider}")
     last_error = None
     for _ in range(2):
         try:
@@ -226,12 +226,12 @@ def call_model(client, provider: str, model: str, system: list[dict], user: str,
                 if block.type == "tool_use":
                     validate(block.input)
                     return block.input
-            raise ValueError("模型沒有回傳 tool 結果")
-        except Exception as e:  # 網路、API 與格式錯誤一律重試一次
+            raise ValueError("The model returned no tool result")
+        except Exception as e:  # network, API and format errors are all retried once
             last_error = e
             usage.failures.append(str(e)[:80])
-            print(f"  ⚠️ 嘗試失敗：{str(e)[:120]}")
-    print(f"  ⚠️ 呼叫失敗（已重試一次）：{last_error}")
+            print(f"  ⚠️ Attempt failed: {str(e)[:120]}")
+    print(f"  ⚠️ Call failed (retried once): {last_error}")
     return None
 
 
@@ -239,26 +239,26 @@ def validate_triage(data: dict) -> None:
     scores = data["scores"]
     for t in TRACKS:
         if not isinstance(scores[t], int) or not 0 <= scores[t] <= 5:
-            raise ValueError(f"路線 {t} 分數不合法：{scores[t]!r}")
+            raise ValueError(f"Invalid score for track {t}: {scores[t]!r}")
     if (not isinstance(data["custom_family"], bool) or not str(data["reason"]).strip()
             or (VISA_ENABLED and not isinstance(data["visa_blocked"], bool))):
-        raise ValueError("custom_family、visa_blocked 或 reason 不合法")
+        raise ValueError("custom_family, visa_blocked or reason is invalid")
 
 
 def validate_detail(data: dict) -> None:
     if data["resume"] not in TRACKS:
-        raise ValueError(f"resume 不是路線代號：{data['resume']!r}")
+        raise ValueError(f"resume is not a track id: {data['resume']!r}")
     for key in ("emphasize", "gaps"):
         if not isinstance(data[key], list) or len(data[key]) > 3:
-            raise ValueError(f"{key} 必須是最多 3 條的清單")
+            raise ValueError(f"{key} must be a list of at most 3 items")
 
 
 def validate_summary(data: dict) -> None:
     if not isinstance(data["summary"], str) or not data["summary"].strip():
-        raise ValueError("summary 不能是空的")
+        raise ValueError("summary must not be empty")
 
 
-# ---------- 快取表 ----------
+# ---------- cache tables ----------
 
 def init_score_tables(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -303,7 +303,7 @@ def save_cached(conn: sqlite3.Connection, table: str, job_id: str, profiles_hash
     conn.commit()
 
 
-# ---------- Step 5：初評 ----------
+# ---------- Step 5: triage ----------
 
 VISA_HINT = re.compile(
     r"sponsor|\bvisas?\b|work authori[sz]ation|authori[sz]ed to work|legally (?:able|authori[sz]ed)|"
@@ -311,7 +311,7 @@ VISA_HINT = re.compile(
 
 
 def visa_excerpts(description: str, max_items: int = 3, before: int = 150, after: int = 250) -> list[str]:
-    """從完整描述抽出簽證相關片段（合併重疊的視窗），讓只看前段的初評也讀得到結尾的簽證聲明。"""
+    """Extract visa-related passages from the full description (overlapping windows merged), so a triage that only sees the start still reads a visa statement at the end."""
     text = re.sub(r"\s+", " ", description or "")
     windows: list[list[int]] = []
     for m in VISA_HINT.finditer(text):
@@ -332,7 +332,7 @@ def triage_user_prompt(job: dict, chars: int, visa_skip_locations: list[str] | N
         "description": (job.get("description") or "")[:chars],
     }
     location = (job.get("location") or "").lower()
-    skip_visa = any(loc.lower() in location for loc in (visa_skip_locations or []))  # 例如求職者本國的地點不需要 sponsor
+    skip_visa = any(loc.lower() in location for loc in (visa_skip_locations or []))  # e.g. locations in the candidate's home country need no sponsorship
     excerpts = [] if skip_visa or not VISA_ENABLED else visa_excerpts(job.get("description") or "")
     visa_block = ""
     if excerpts:
@@ -341,9 +341,9 @@ def triage_user_prompt(job: dict, chars: int, visa_skip_locations: list[str] | N
 
 
 def finalize_triage(raw: dict) -> dict:
-    """由程式推出最佳路線與 needs_custom（分數相同時依 TRACKS 的順序）。
+    """The program derives the best track and needs_custom (ties go to the earlier track in TRACKS).
 
-    visa_blocked 為 true 時，各條路線的分數一律壓到 1（原始分數存在 scores_raw，方便事後檢查或撈回），且不算需客製。
+    When visa_blocked is true every track's score is capped at 1 (the raw scores are kept in scores_raw for later inspection or recovery) and the job does not count as needs-custom.
     """
     visa_blocked = VISA_ENABLED and bool(raw.get("visa_blocked"))
     scores = {t: min(raw["scores"][t], 1) for t in TRACKS} if visa_blocked else raw["scores"]
@@ -379,7 +379,7 @@ def triage_job(conn, client, config, profiles, usage, job: dict) -> dict | None:
     return result
 
 
-# ---------- Step 6：挑選短名單 ----------
+# ---------- Step 6: pick the shortlist ----------
 
 def sort_key(job: dict) -> tuple:
     applicants = effective_applicant_count(job.get("applicantsDetails"))
@@ -387,11 +387,11 @@ def sort_key(job: dict) -> tuple:
 
 
 def select_shortlist(scored: list[dict], size: int, min_score: int = 4, custom_min_score: int = 3) -> dict:
-    """回傳 {'main': 一般名單, 'custom': 需客製履歷區塊}。
+    """Return {'main': main list, 'custom': needs-custom-resume block}.
 
-    一般名單：最佳分數 >= min_score 才入選（短名單門檻），最多 size 筆，不用較低分補滿；
-    同分應徵人數少者在前。needs_custom 的職缺進獨立區塊，不受一般門檻限制、也不佔一般名額，
-    但最佳分數仍須 >= custom_min_score（分數太低表示只有類型沾邊，不值得客製）。
+    Main list: only a best score >= min_score gets in (the shortlist threshold), at most size jobs, never padded with lower scores;
+    ties go to the job with fewer applicants. needs_custom jobs go to their own block: they are not held to the main threshold and do not use up main slots,
+    but their best score must still be >= custom_min_score (too low a score means only the job type overlaps, which is not worth customizing for).
     """
     custom = sorted((j for j in scored if j["triage"]["needs_custom"]
                      and j["triage"]["best_score"] >= custom_min_score), key=sort_key)
@@ -418,7 +418,7 @@ def detail_job(conn, client, config, profiles, usage, job: dict) -> dict | None:
     result = call_model(client, cfg.get("provider", "anthropic"), model,
                         detail_system(profiles, triage["best_track"]), user,
                         DETAIL_TOOL, validate_detail, usage, max_tokens=1500,
-                        force_tool=False)  # Sonnet 5.5 不支援強制指定工具，改靠 prompt 要求呼叫
+                        force_tool=False)  # Sonnet 5.5 cannot be forced to use a tool, so the prompt asks it to call the tool instead
     if result is not None:
         save_cached(conn, "detail_reviews", job["jobId"], profiles["detail_hash"], model, result)
     return result
@@ -444,7 +444,7 @@ def summarize_job(client, config, usage, job: dict) -> str | None:
 
 
 def add_summaries(client, config, usage, selection: dict, day_dir: Path) -> None:
-    """每筆入選職缺補上 SUMMARY。既有 .md 已有 SUMMARY 就原樣沿用（含使用者改過的），不重呼叫模型；失敗就不顯示，下次重跑再補。"""
+    """Add a SUMMARY to each shortlisted job. A SUMMARY already in the existing .md is kept as it is (including your edits) and the model is not called; on failure nothing is shown and the next rerun fills it in."""
     for job in selection["main"] + selection["custom"]:
         folder = find_job_folder(day_dir, job["jobId"]) if day_dir.exists() else None
         md = folder / f"{folder.name}.md" if folder else None
@@ -459,7 +459,7 @@ def mark_recommended(conn: sqlite3.Connection, picks: list[dict]) -> None:
     conn.commit()
 
 
-# ---------- Step 6：輸出 ----------
+# ---------- Step 6: output ----------
 
 def _count(path: Path) -> int | None:
     if not path.exists():
@@ -507,11 +507,11 @@ def yaml_value(value) -> str:
         return "true" if value else "false"
     if isinstance(value, (int, float)):
         return str(value)
-    return json.dumps(value, ensure_ascii=False)  # JSON 字串也是合法的 YAML
+    return json.dumps(value, ensure_ascii=False)  # a JSON string is also valid YAML
 
 
 def read_frontmatter(path: Path) -> dict:
-    """讀 .md 開頭 --- 區塊的簡單 key: value；只用來取回 jobId 與使用者擁有的 status。"""
+    """Read the simple key: value pairs of the --- block at the top of a .md; only used to recover jobId and the user-owned status."""
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         return {}
@@ -524,7 +524,7 @@ def read_frontmatter(path: Path) -> dict:
 
 
 def read_list_property(path: Path, key: str) -> list[str]:
-    """取回列表型 property 的所有值。Obsidian 把它存成列表（types.json 的 multitext），手寫常是單一字串，兩種都讀，統一回傳列表。"""
+    """Return all values of a list property. Obsidian stores it as a list (multitext in types.json) while hand-written ones are often one string; both are read and returned as a list."""
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         return []
@@ -548,7 +548,7 @@ def read_status(path: Path) -> list[str]:
 
 
 def read_interest(path: Path) -> str:
-    """取回 interest（checkbox）那行冒號後的原始文字（空白、true 或 false），重寫 .md 時原樣放回。"""
+    """Return the raw text after the colon on the interest (checkbox) line (blank, true or false), put back unchanged when the .md is rewritten."""
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         return ""
@@ -559,7 +559,7 @@ def read_interest(path: Path) -> str:
 
 
 def list_lines(key: str, values: list[str] | str) -> list[str]:
-    """列表型 property 一律輸出成列表，與 Obsidian 的 multitext 格式一致，使用者在 Obsidian 改過也不會變格式。空列表只輸出 `key:`。"""
+    """List properties are always written as lists, matching Obsidian's multitext format, so edits made in Obsidian do not change the format. An empty list is written as just `key:`."""
     items = [values] if isinstance(values, str) else values
     return [f"{key}:"] + [f"  - {s}" if re.fullmatch(r"[\w][\w /-]*", s) else f"  - {yaml_value(s)}" for s in items]
 
@@ -569,7 +569,7 @@ def status_lines(status: list[str] | str) -> list[str]:
 
 
 def read_user_note(path: Path) -> str:
-    """取回 user note 那行冒號後的原始文字（含引號），重寫 .md 時原樣放回，不丟使用者寫的內容。"""
+    """Return the raw text after the colon on the user note line (quotes included), put back unchanged when the .md is rewritten so nothing you wrote is lost."""
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         return ""
@@ -580,7 +580,7 @@ def read_user_note(path: Path) -> str:
 
 
 def read_summary(path: Path) -> str:
-    """取回 .md 裡「## SUMMARY」到下一個 ## 標題之間的文字，重寫 .md 時原樣放回。"""
+    """Return the text between "## SUMMARY" and the next ## heading in a .md, put back unchanged when the .md is rewritten."""
     m = re.search(r"^## SUMMARY\n\n(.*?)(?=\n## |\Z)", path.read_text(encoding="utf-8"), re.S | re.M)
     return m.group(1).strip() if m else ""
 
@@ -600,7 +600,7 @@ def job_frontmatter(rank: int | None, job: dict, run_date: str, scraped_date: st
     if tr["needs_custom"]:
         tags.append("needs-custom")
     posted = job.get("postedDate")
-    source = job.get("source", "linkedin")  # 非 LinkedIn 的職缺沒有 jobId、應徵人數，也沒有每日排名
+    source = job.get("source", "linkedin")  # non-LinkedIn jobs have no jobId, applicant count or daily rank
     props = [
         ("title", job["title"]),
         ("company", job["company"]),
@@ -612,7 +612,7 @@ def job_frontmatter(rank: int | None, job: dict, run_date: str, scraped_date: st
         ("best_track", tr["best_track"]),
         ("best_score", tr["best_score"]),
         *((f"score_{t}", tr["scores"][t]) for t in TRACKS),
-        ("resume", job.get("resume_file") or (TRACKS[detail["resume"]]["resume"] if detail else None)),  # resume_file：手動指定的客製履歷
+        ("resume", job.get("resume_file") or (TRACKS[detail["resume"]]["resume"] if detail else None)),  # resume_file: a custom resume set by hand
         ("location", job.get("location")),
         ("salary", salary_text(job.get("salaryDetails"))),
         ("applicants", (job.get("applicantsDetails") or {}).get("text", TX["applicants_unknown"]) if source == "linkedin" else None),
@@ -623,13 +623,13 @@ def job_frontmatter(rank: int | None, job: dict, run_date: str, scraped_date: st
     for key, val in props:
         if val is None:
             continue
-        # 日期要輸出成未加引號的 YYYY-MM-DD，Obsidian 才會當日期欄位
+        # dates must be written as unquoted YYYY-MM-DD for Obsidian to treat them as date fields
         lines.append(f"{key}: {val if key.startswith('date_') else yaml_value(val)}")
     lines += status_lines(status)
-    lines.append(f"interest: {interest}".rstrip())  # 使用者自己勾選（checkbox：勾＝有興趣，空白＝未表態）；空的也要有這個欄位，Obsidian 才看得到
+    lines.append(f"interest: {interest}".rstrip())  # ticked by the user (checkbox: ticked = interested, blank = no opinion); even when empty the field must exist so Obsidian can show it
     lines.append("tags:")
     lines += [f"  - {t}" for t in tags]
-    lines.append(f"user note: {user_note}".rstrip())  # 使用者自己填；空的也要有這個欄位，Obsidian 才看得到
+    lines.append(f"user note: {user_note}".rstrip())  # filled in by the user; even when empty the field must exist so Obsidian can show it
     lines.append("---")
     return lines
 
@@ -751,7 +751,7 @@ def write_shortlist(selection: dict, scored: list[dict], run_date: str, scraped_
                     pre_counts: list[tuple[str, int]], queries_table: list[str],
                     root: Path = SHORTLIST_DIR, folder_name: str | None = None,
                     summary_name: str = "_summary.md") -> Path:
-    """一職缺一資料夾。同 jobId 的資料夾已存在就只重寫 .md，不改名、不動裡面使用者的檔案。"""
+    """One folder per job. If a folder for the same jobId exists only its .md is rewritten; it is not renamed and the files in it are not touched."""
     day_dir = root / (folder_name or run_date)
     day_dir.mkdir(parents=True, exist_ok=True)
     for rank, job in enumerate(selection["main"] + selection["custom"], 1):
@@ -768,7 +768,7 @@ def write_shortlist(selection: dict, scored: list[dict], run_date: str, scraped_
         else:
             name = f"{rank:02d}_{slug(job['company'])}_{slug(job['title'])}"
             folder = day_dir / name
-            if folder.exists():  # 同公司同職稱的不同職缺
+            if folder.exists():  # a different job with the same company and title
                 folder = day_dir / f"{name}_{job['jobId']}"
             folder.mkdir()
         (folder / f"{folder.name}.md").write_text(
@@ -782,12 +782,12 @@ def write_shortlist(selection: dict, scored: list[dict], run_date: str, scraped_
     return day_dir
 
 
-# ---------- 主流程 ----------
+# ---------- main flow ----------
 
 def process_filtered_file(conn, client, config, profiles, path: Path, limit: int | None, detail: bool,
                            stats_path: Path | None = None, folder_suffix: str = "",
                            shortlist_size: int | None = None, summary_name: str = "_summary.md") -> None:
-    """folder_suffix：短名單資料夾名稱加後綴（例如 backfill → 2026-10-05-backfill），date_recommended 仍是執行日。"""
+    """folder_suffix: a suffix on the shortlist folder name (e.g. backfill -> 2026-10-05-backfill); date_recommended stays the run date."""
     with path.open(encoding="utf-8") as f:
         jobs = json.load(f)
     if limit:
@@ -798,7 +798,7 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
     for job in jobs:
         triage = triage_job(conn, client, config, profiles, usages["triage"], job)
         if triage is None:
-            print(f"  ⚠️ 跳過 {job['jobId']}「{job.get('title')}」（初評失敗，下次重評）")
+            print(f"  ⚠️ Skipping {job['jobId']} \"{job.get('title')}\" (triage failed; it will be rescored next time)")
             continue
         scored.append({**job, "triage": triage})
 
@@ -835,33 +835,33 @@ def process_filtered_file(conn, client, config, profiles, path: Path, limit: int
         }
         stats_path.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"讀取：{path}")
-    print(f"輸入筆數：{len(jobs)}，初評成功：{len(scored)}")
-    print(f"短名單：一般 {len(selection['main'])}、需客製 {len(selection['custom'])}")
+    print(f"Read: {path}")
+    print(f"Input jobs: {len(jobs)}, triaged: {len(scored)}")
+    print(f"Shortlist: main {len(selection['main'])}, needs custom resume {len(selection['custom'])}")
     for label, u in usages.items():
         print(f"{label} usage: {u.line()}")
-    print(f"已存檔至：{SCORED_DIR / path.name}、{shortlist_path}")
+    print(f"Saved to: {SCORED_DIR}/{path.name}, {shortlist_path}")
     print("-" * 50)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", type=Path, default=DB_PATH, help="資料庫路徑（測試時用 test.db）")
-    parser.add_argument("--limit", type=int, help="每個檔案最多評分幾筆（測試用）")
-    parser.add_argument("--no-detail", action="store_true", help="不做詳評（省 token）")
-    parser.add_argument("--stats-json", type=Path, help="把短名單統計（筆數、各 track、token 用量）寫成 JSON，每日執行用")
-    parser.add_argument("--only", help="只處理指定檔名（每日執行用，例如 raw_20261004.json）")
-    parser.add_argument("--folder-suffix", default="", help="短名單資料夾後綴，例如 backfill（回補用）")
-    parser.add_argument("--shortlist-size", type=int, help="一般名單上限（覆蓋 config，回補用）")
-    parser.add_argument("--summary-name", default="_summary.md", help="統計檔檔名（回補每批用不同檔名，避免覆蓋）")
+    parser.add_argument("--db", type=Path, default=DB_PATH, help="database path (use test.db when testing)")
+    parser.add_argument("--limit", type=int, help="score at most this many jobs per file (for testing)")
+    parser.add_argument("--no-detail", action="store_true", help="skip the detailed review (saves tokens)")
+    parser.add_argument("--stats-json", type=Path, help="write the shortlist stats (counts, per track, token usage) as JSON, used by the daily run")
+    parser.add_argument("--only", help="process only this file name (used by the daily run, e.g. raw_20261004.json)")
+    parser.add_argument("--folder-suffix", default="", help="suffix of the shortlist folder, e.g. backfill (for backfills)")
+    parser.add_argument("--shortlist-size", type=int, help="cap of the main list (overrides config; for backfills)")
+    parser.add_argument("--summary-name", default="_summary.md", help="file name of the stats file (each backfill batch uses a different one so none is overwritten)")
     args = parser.parse_args()
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("找不到 ANTHROPIC_API_KEY，請在 .env 設定或匯出環境變數。")
+        sys.exit("ANTHROPIC_API_KEY not found. Set it in .env or export it as an environment variable.")
     try:
         profiles = load_profiles()
     except FileNotFoundError as e:
-        sys.exit(f"找不到 profile 檔：{e.filename}，請先建立 profiles/。")
+        sys.exit(f"Profile file not found: {e.filename}. Create profiles/ first.")
 
     config = load_config()
     client = anthropic.Anthropic()
@@ -872,7 +872,7 @@ if __name__ == "__main__":
     if args.only:
         files = [f for f in files if f.name == args.only]
     if not files:
-        print(f"{FILTERED_DIR}/ 底下沒有找到任何 .json 檔案，請先執行 scripts/execution-python/filter.py。")
+        print(f"No .json files found in {FILTERED_DIR}/. Run scripts/execution-python/filter.py first.")
     for filtered_path in files:
         process_filtered_file(conn, client, config, profiles, filtered_path, args.limit, not args.no_detail,
                               args.stats_json, args.folder_suffix, args.shortlist_size, args.summary_name)

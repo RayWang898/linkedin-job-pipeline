@@ -1,7 +1,7 @@
-# 公開版與個人版共用同一份程式碼，使用者資料放在工作區
+# One shared codebase for the public and personal versions; user data lives in a workspace
 
-公開到 GitHub 的版本，和作者自己每天使用的版本是同一份引擎。引擎（程式碼、範本、文件）放在 repo，使用者資料（`config.yaml`、`profiles/`、`resumes/`、`data/`、`jobs.db`、`.env`）放在 repo 外面的工作區（workspace）。作者自己的資料也只是另一個工作區。
+The version published on GitHub and the version its author runs every day are the same engine. The engine (code, templates, docs) lives in this repo. A user's data (`config.yaml`, `profiles/`, `resumes/`, `data/`, `jobs.db`, `.env`) lives in a workspace folder outside the repo. The author's own data is just another workspace.
 
-考慮過兩個替代方案：在現有 repo 開 `public-release` branch，或複製成另一份長期獨立維護的資料夾。branch 的問題是每日 launchd 跑的就是這個資料夾，切換 branch 會讓排程改用還沒驗證的程式；而且 `profiles/`、`data/` 不跟著 branch 走。複製兩份的問題是引擎修正要手動同步，兩份會越差越多。
+Two alternatives were considered: a `public-release` branch in the existing repo, or a second copy of the code maintained separately for a long time. The branch has a problem because the daily launchd job runs from that folder, so switching branches would make the schedule run unverified code, and `profiles/` and `data/` do not follow a branch. Two copies have a problem because every engine fix has to be synced by hand and the copies drift further apart.
 
-代價：引擎必須不再假設自己所在的資料夾就是資料所在的資料夾（目前各腳本用 `os.chdir(ROOT)` 加相對路徑，要改成指向工作區），而且作者要把自己的資料搬進工作區後才能切換。在公開版通過實測前，作者原本的資料夾和排程維持不動。
+Cost: the engine must stop assuming that its own folder is also the data folder (the scripts used to call `os.chdir(ROOT)` and use relative paths; they now resolve a workspace instead), and the author has to move their data into a workspace before switching. Until the public version has passed a real-world test, the author's original folder and schedule stay untouched.

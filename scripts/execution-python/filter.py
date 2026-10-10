@@ -1,8 +1,8 @@
 """
-階段三：篩選。用規則做硬篩，不用 AI。
-依序套用：地點白名單 -> 應徵人數上限 -> 職稱排除 -> 簽證排除 -> 要求年資 -> 排除關鍵字 -> 排除人力仲介 -> 投遞紀錄查重。
-任一條件不通過就整筆排除，並記錄原因。
-地點白名單之外的職缺，額外用 Nominatim 算距離中心多遠，只當作診斷資訊印出來，不影響篩選結果。
+Stage 3: filter. Hard rules only, no AI.
+Applied in order: location whitelist -> applicant cap -> title exclusion -> visa exclusion -> required years -> excluded keywords -> staffing agencies -> tracker duplicate check.
+A job that fails any condition is excluded and the reason is recorded.
+For jobs outside the location whitelist, Nominatim also computes the distance from the center point; it is printed as a diagnostic only and does not change the result.
 """
 
 import argparse
@@ -78,9 +78,9 @@ def geocode(address: str, conn: sqlite3.Connection) -> tuple[float, float] | Non
         )
         resp.raise_for_status()
         results = resp.json()
-        time.sleep(1)  # Nominatim 使用政策：每秒最多 1 次請求
+        time.sleep(1)  # Nominatim usage policy: at most 1 request per second
     except Exception as e:
-        print(f"  ⚠️ 無法定位「{address}」：{e}")
+        print(f"  ⚠️ Could not geocode \"{address}\": {e}")
         conn.execute(
             "INSERT INTO geocode_cache (address, lat, lon) VALUES (?, NULL, NULL)",
             (address,),
@@ -106,7 +106,7 @@ def geocode(address: str, conn: sqlite3.Connection) -> tuple[float, float] | Non
 
 
 def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    r = 3958.8  # 地球半徑（英里）
+    r = 3958.8  # Earth radius (miles)
     lat1, lon1, lat2, lon2 = map(radians, (lat1, lon1, lat2, lon2))
     dlat, dlon = lat2 - lat1, lon2 - lon1
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
@@ -134,7 +134,7 @@ def effective_applicant_count(applicants_details: dict | None) -> int | None:
 def passes_applicant_cap(job: dict, config: dict) -> bool:
     count = effective_applicant_count(job.get("applicantsDetails"))
     if count is None:
-        return True  # 資料缺漏時不因此排除，但會在報告中提醒
+        return True  # missing data does not exclude a job here, but the report points it out
     return count <= config["max_applicants"]
 
 
@@ -151,7 +151,7 @@ def passes_staffing_agency(job: dict, config: dict) -> bool:
 
 
 def passes_title(job: dict, config: dict) -> bool:
-    # 括號內是選填，例如「(Senior) Product Builder」同時開給資深與非資深，不當成層級要求
+    # the part in parentheses is optional: "(Senior) Product Builder" is open to senior and non-senior candidates, so it is not a level requirement
     title = re.sub(r"\([^)]*\)", " ", job.get("title") or "")
     for pattern in config.get("exclude_title_patterns", []):
         if re.search(rf"\b{re.escape(pattern)}\b", title, re.IGNORECASE):
@@ -165,13 +165,13 @@ def passes_visa(job: dict, config: dict) -> bool:
         return True
     location = (job.get("location") or "").lower()
     if any(loc.lower() in location for loc in visa["skip_locations"]):
-        return True  # 簽證規則是針對美國 OPT；使用者在這些地點不需要 sponsor
+        return True  # the visa rules target US OPT; users do not need sponsorship in these locations
     description = re.sub(r"\s+", " ", job.get("description") or "").lower()
     return not any(p.lower() in description for p in visa["exclude_patterns"])
 
 
 def passes_unpaid(job: dict, config: dict) -> bool:
-    """無薪／志工職缺：職稱含關鍵字（整字比對，括號內也算），或描述符合 exclude_unpaid_patterns（正規表示式）。"""
+    """Unpaid / volunteer jobs: the title contains a keyword (whole-word match, parentheses included), or the description matches exclude_unpaid_patterns (regular expressions)."""
     title = job.get("title") or ""
     for word in config.get("exclude_unpaid_title_words", []):
         if re.search(rf"\b{re.escape(word)}\b", title, re.IGNORECASE):
@@ -185,20 +185,20 @@ NUMBER_WORDS = {
     "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
 }
 _NUM = r"(\d{1,2}|" + "|".join(NUMBER_WORDS) + r")"
-# 「5+ years」「3-5 years」「five to seven years」「at least 5 years」「5 years or more」都取第一個數字。
+# "5+ years", "3-5 years", "five to seven years", "at least 5 years" and "5 years or more" all take the first number.
 YEARS_RE = re.compile(
     _NUM + r"(?:\s*\+|\s*(?:-|–|to)\s*" + _NUM + r")?\s*(?:or more |plus )?years?\b",
     re.IGNORECASE,
 )
 YEARS_CONTEXT_RE = re.compile(r"experience|exp\b", re.IGNORECASE)
-# 「8+ years across …」這種寫法附近沒有 experience 字樣，但有「+」，視為要求；前後若有公司歷史字眼則不算
+# A phrase like "8+ years across ..." has no "experience" nearby but has a "+", so it counts as a requirement unless company-history wording is around it
 YEARS_HISTORY_RE = re.compile(
     r"history|legacy|in business|since|founded|serving|of service|of innovation|of excellence|old\b|anniversary|established|heritage",
     re.IGNORECASE,
 )
-YEARS_AFTER_WINDOW = 100  # experience 常在同一條要求的句尾，例如「5-7 years' Medical Marketing experience」
+YEARS_AFTER_WINDOW = 100  # "experience" often ends the same requirement, e.g. "5-7 years' Medical Marketing experience"
 YEARS_SOFT_RE = re.compile(r"preferred|nice to have|a plus|bonus|desired", re.IGNORECASE)
-MAX_PLAUSIBLE_YEARS = 15  # 超過視為公司歷史（例如「50 years of experience in the industry」），不當作要求
+MAX_PLAUSIBLE_YEARS = 15  # anything above is treated as company history (e.g. "50 years of experience in the industry"), not a requirement
 
 
 def _to_int(token: str) -> int:
@@ -206,10 +206,10 @@ def _to_int(token: str) -> int:
 
 
 def required_years(description: str) -> int | None:
-    """回傳 description 中明確要求的最低年資，沒有則回傳 None。
+    """Return the minimum years explicitly required in the description, or None if there is none.
 
-    多處出現時取最小者：職缺常寫「2+ years ... OR 6+ years」這類替代條件或分項要求，
-    取最大值會誤殺；取最小值最多漏放，漏放的交給 Step 5 的「層級與年資」面向判斷。
+    When several appear, take the smallest: postings often write alternatives or separate requirements such as "2+ years ... OR 6+ years",
+    and taking the largest would exclude wrongly; taking the smallest at worst lets a job through, which the "level and seniority" aspect of Step 5 then judges.
     """
     text = re.sub(r"\s+", " ", description or "")
     found = []
@@ -219,9 +219,9 @@ def required_years(description: str) -> int | None:
         has_context = YEARS_CONTEXT_RE.search(before) or YEARS_CONTEXT_RE.search(after)
         has_plus = "+" in m.group(0) and not YEARS_HISTORY_RE.search(before + after[:50])
         if not (has_context or has_plus):
-            continue  # 附近沒有 experience 字樣（也不是「N+ years」），不是年資要求
+            continue  # no "experience" nearby (and not "N+ years"), so this is not a years requirement
         if YEARS_SOFT_RE.search(re.split(r"[.;]", after)[0][:40]):
-            continue  # 「5+ years preferred」只是加分條件
+            continue  # "5+ years preferred" is only a bonus
         years = _to_int(m.group(1))
         if years <= MAX_PLAUSIBLE_YEARS:
             found.append(years)
@@ -259,7 +259,7 @@ def normalize_text(text: str, drop_company_suffix: bool = False) -> str:
 
 def load_tracker(path: Path, labels: dict) -> list[dict]:
     if not path.exists():
-        print(f"  ⚠️ 找不到投遞紀錄 {path}，略過投遞紀錄查重。")
+        print(f"  ⚠️ Tracker file {path} not found; skipping the tracker duplicate check.")
         return []
     status_by_label = {word.strip(): status for status, word in labels.items()}
     entries = []
@@ -268,7 +268,7 @@ def load_tracker(path: Path, labels: dict) -> list[dict]:
         status = status_by_label.get(label.strip())
         if not status:
             continue
-        for item in body.split("｜"):
+        for item in re.split(r"[|｜]", body):  # ASCII or full-width bar
             if " · " not in item:
                 continue
             title, company = item.rsplit(" · ", 1)
@@ -283,7 +283,7 @@ def load_tracker(path: Path, labels: dict) -> list[dict]:
 
 
 def match_tracker(job: dict, tracker: list[dict]) -> tuple[dict | None, list[dict]]:
-    """回傳（公司與職稱都相同的紀錄, 只有公司相同的紀錄清單）。"""
+    """Return (the entry with the same company and title, the list of entries with only the same company)."""
     company_key = normalize_text(job.get("company"), drop_company_suffix=True)
     title_key = normalize_text(job.get("title"))
     same_company = [e for e in tracker if e["company_key"] == company_key]
@@ -293,7 +293,7 @@ def match_tracker(job: dict, tracker: list[dict]) -> tuple[dict | None, list[dic
 
 
 def filter_job(job: dict, config: dict) -> str | None:
-    """回傳 None 表示通過，否則回傳排除原因。"""
+    """Return None if the job passes, otherwise the exclusion reason."""
     if not passes_location(job, config):
         return "location"
     if not passes_applicant_cap(job, config):
@@ -342,8 +342,8 @@ def filter_batch(jobs: list[dict], config: dict, conn: sqlite3.Connection) -> di
             if job_coords:
                 dist = haversine_miles(*center, *job_coords)
                 print(
-                    f"  ⚠️ 排除「{job.get('title')}」@ {job.get('location')} "
-                    f"（距離中心約 {dist:.0f} 英里，不在白名單內）"
+                    f"  ⚠️ Excluded \"{job.get('title')}\" @ {job.get('location')} "
+                    f"(about {dist:.0f} miles from the center, not in the whitelist)"
                 )
 
     return {"kept": kept, "excluded_by_reason": excluded_by_reason}
@@ -355,18 +355,18 @@ def process_deduped_file(conn: sqlite3.Connection, config: dict, path: Path) -> 
 
     result = filter_batch(jobs, config, conn)
 
-    print(f"讀取：{path}")
-    print(f"輸入筆數：{len(jobs)}")
-    print(f"通過篩選：{len(result['kept'])}")
+    print(f"Read: {path}")
+    print(f"Input jobs: {len(jobs)}")
+    print(f"Passed the filter: {len(result['kept'])}")
     for reason, items in result["excluded_by_reason"].items():
-        print(f"排除（{reason}）：{len(items)}")
+        print(f"Excluded ({reason}): {len(items)}")
 
     FILTERED_DIR.mkdir(parents=True, exist_ok=True)
     out_path = FILTERED_DIR / path.name
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(result["kept"], f, ensure_ascii=False, indent=2)
 
-    print(f"已存檔至：{out_path}")
+    print(f"Saved to: {out_path}")
 
     EXCLUDED_DIR.mkdir(parents=True, exist_ok=True)
     excluded_path = EXCLUDED_DIR / path.name
@@ -377,14 +377,14 @@ def process_deduped_file(conn: sqlite3.Connection, config: dict, path: Path) -> 
     ]
     with excluded_path.open("w", encoding="utf-8") as f:
         json.dump(excluded_records, f, ensure_ascii=False, indent=2)
-    print(f"被排除職缺已存檔至：{excluded_path}")
+    print(f"Excluded jobs saved to: {excluded_path}")
     print("-" * 50)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", type=Path, default=DB_PATH, help="資料庫路徑（測試時用 test.db）")
-    parser.add_argument("--only", help="只處理指定檔名（每日執行用，例如 raw_20261004.json）")
+    parser.add_argument("--db", type=Path, default=DB_PATH, help="database path (use test.db when testing)")
+    parser.add_argument("--only", help="process only this file name (used by the daily run, e.g. raw_20261004.json)")
     args = parser.parse_args()
     config = load_config()
     conn = sqlite3.connect(args.db)
@@ -394,7 +394,7 @@ if __name__ == "__main__":
     if args.only:
         deduped_files = [f for f in deduped_files if f.name == args.only]
     if not deduped_files:
-        print(f"{DEDUPED_DIR}/ 底下沒有找到任何 .json 檔案，請先執行 scripts/execution-python/dedup.py。")
+        print(f"No .json files found in {DEDUPED_DIR}/. Run scripts/execution-python/dedup.py first.")
     for deduped_path in deduped_files:
         process_deduped_file(conn, config, deduped_path)
 

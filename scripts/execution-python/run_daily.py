@@ -1,14 +1,14 @@
 """
-每日執行：依序跑完六步流程，失敗時重試，結束後用 ntfy 通知手機。設計見 architecture/07_scheduling.md。
+Daily run: run the six steps in order, retry on failure, and notify your phone through ntfy at the end.
 
-只負責協調，步驟本身的邏輯都在 fetch.py、dedup.py、filter.py、score.py。
+It only coordinates; the logic of each step lives in fetch.py, dedup.py, filter.py and score.py.
 
-用法：
-  venv/bin/python scripts/execution-python/run_daily.py                 # 正常每日執行（同一天已成功就略過）
-  venv/bin/python scripts/execution-python/run_daily.py --force         # 同一天已成功也重跑
-  venv/bin/python scripts/execution-python/run_daily.py --no-notify     # 不發通知（測試用）
-  venv/bin/python scripts/execution-python/run_daily.py --max-jobs 5 --db test.db   # 測試：小量、用測試資料庫
-需要環境變數 APIFY_TOKEN、ANTHROPIC_API_KEY、NTFY_TOPIC（可放在 .env）。
+Usage:
+  venv/bin/python scripts/execution-python/run_daily.py                 # normal daily run (skipped if today already succeeded)
+  venv/bin/python scripts/execution-python/run_daily.py --force         # rerun even if today already succeeded
+  venv/bin/python scripts/execution-python/run_daily.py --no-notify     # no notification (for testing)
+  venv/bin/python scripts/execution-python/run_daily.py --max-jobs 5 --db test.db   # testing: a few jobs and a test database
+Needs the environment variables APIFY_TOKEN, ANTHROPIC_API_KEY and NTFY_TOPIC (can be set in .env).
 """
 
 import argparse
@@ -37,7 +37,7 @@ TX, fill = score.TX, score.fill
 LOG_DIR = Path("logs")
 DB_PATH = Path("jobs.db")
 CONFIG_PATH = Path("config.yaml")
-STALE_RUNNING_HOURS = 3  # 超過這個時間還標記為 running，視為上次異常中斷
+STALE_RUNNING_HOURS = 3  # a run still marked running after this long is treated as an earlier abnormal stop
 
 _log_file = None
 
@@ -52,12 +52,12 @@ def log(msg: str) -> None:
 
 class StepFailed(Exception):
     def __init__(self, step: str, detail: str):
-        super().__init__(f"{step}：{detail}")
+        super().__init__(f"{step}: {detail}")
         self.step = step
         self.detail = detail
 
 
-# ---------- daily_runs 表 ----------
+# ---------- daily_runs table ----------
 
 def init_runs_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -68,11 +68,11 @@ def init_runs_table(conn: sqlite3.Connection) -> None:
             started_at TEXT NOT NULL,
             finished_at TEXT,
             raw_count INTEGER,
-            failed_queries TEXT,           -- 放棄的搜尋組別，逗號分隔
+            failed_queries TEXT,           -- queries given up on, comma-separated
             main_count INTEGER,
             custom_count INTEGER,
-            by_track TEXT,                 -- JSON：短名單依最佳 track 分組的筆數
-            tokens TEXT,                   -- JSON：初評與詳評合計的 token 用量
+            by_track TEXT,                 -- JSON: shortlist counts grouped by best track
+            tokens TEXT,                   -- JSON: total token usage of triage and detailed review
             error TEXT
         )
         """
@@ -112,22 +112,22 @@ def finish_run(conn: sqlite3.Connection, run_date: str, status: str, **fields) -
     conn.commit()
 
 
-# ---------- 步驟執行與重試 ----------
+# ---------- running steps with retries ----------
 
 def with_retries(step: str, backoff: list[int], fn):
-    """fn 失敗（丟例外）就依 backoff 等待後重試；用完仍失敗丟 StepFailed。"""
+    """If fn fails (raises), wait per backoff and retry; raise StepFailed if it still fails."""
     waits = [0] + list(backoff)
     last = None
     for attempt, wait in enumerate(waits, 1):
         if wait:
-            log(f"{step}：等待 {wait} 秒後重試（第 {attempt - 1} 次重試）")
+            log(f"{step}: waiting {wait}s before retry {attempt - 1}")
             time.sleep(wait)
         try:
             return fn()
         except Exception as e:
             last = e
-            log(f"{step}：第 {attempt} 次嘗試失敗：{e}")
-    raise StepFailed(step, f"重試 {len(backoff)} 次後仍失敗（{last}）")
+            log(f"{step}: attempt {attempt} failed: {e}")
+    raise StepFailed(step, f"still failing after {len(backoff)} retries ({last})")
 
 
 def run_script(script: str, args: list[str]) -> None:
@@ -136,13 +136,13 @@ def run_script(script: str, args: list[str]) -> None:
     for line in proc.stdout:
         log(f"  | {line.rstrip()}")
     if proc.wait() != 0:
-        raise RuntimeError(f"{script} 結束碼 {proc.returncode}")
+        raise RuntimeError(f"{script} exited with code {proc.returncode}")
 
 
-# ---------- 校準清單 ----------
+# ---------- calibration list ----------
 
 def write_calibration(run_date: str) -> None:
-    """跑 calibrate.py，輸出存到 feedback/calibrate_<日期>.md。失敗只記日誌，不影響流程結果。"""
+    """Run calibrate.py and save the output to feedback/calibrate_<date>.md. A failure is only logged and does not affect the run result."""
     day = run_date.replace("-", "")
     out = Path("feedback") / f"calibrate_{day}.md"
     try:
@@ -150,14 +150,14 @@ def write_calibration(run_date: str) -> None:
         proc = subprocess.run([sys.executable, str(SCRIPTS_DIR / "calibrate.py"), day],
                               capture_output=True, text=True, encoding="utf-8")
         if proc.returncode != 0:
-            raise RuntimeError(proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else f"結束碼 {proc.returncode}")
+            raise RuntimeError(proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else f"exit code {proc.returncode}")
         out.write_text(proc.stdout, encoding="utf-8")
-        log(f"校準清單已存至 {out}")
+        log(f"Calibration list saved to {out}")
     except Exception as e:
-        log(f"⚠️ 校準清單產生失敗（不影響結果）：{e}")
+        log(f"⚠️ Could not produce the calibration list (does not affect the result): {e}")
 
 
-# ---------- 通知 ----------
+# ---------- notification ----------
 
 def fmt_tokens(tokens: dict) -> str:
     inp = tokens.get("input_tokens", 0) + tokens.get("cache_creation_input_tokens", 0) + tokens.get("cache_read_input_tokens", 0)
@@ -181,9 +181,9 @@ def success_message(stats: dict, failed_queries: list[str], gap: int | None) -> 
 
 
 def notify(topic: str | None, message: str, failure: bool = False) -> None:
-    """通知失敗只記日誌，不影響流程結果。內容只放數字，不放公司與職稱。"""
+    """A failed notification is only logged and does not affect the run result. The message holds numbers only, no company names or job titles."""
     if not topic:
-        log("⚠️ 沒有設定 NTFY_TOPIC，略過通知。")
+        log("⚠️ NTFY_TOPIC is not set; skipping the notification.")
         return
     server = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
     headers = {"Title": "Job Search FAILED" if failure else "Job Search", "Tags": "x" if failure else "briefcase"}
@@ -192,12 +192,12 @@ def notify(topic: str | None, message: str, failure: bool = False) -> None:
     try:
         r = requests.post(f"{server}/{topic}", data=message.encode("utf-8"), headers=headers, timeout=15)
         r.raise_for_status()
-        log(f"已通知：{message}")
+        log(f"Notified: {message}")
     except Exception as e:
-        log(f"⚠️ 通知失敗（不影響結果）：{e}")
+        log(f"⚠️ Notification failed (does not affect the result): {e}")
 
 
-# ---------- 主流程 ----------
+# ---------- main flow ----------
 
 def pipeline(args, cfg: dict, token: str, run_date: str) -> dict:
     daily = cfg["daily"]
@@ -205,31 +205,31 @@ def pipeline(args, cfg: dict, token: str, run_date: str) -> dict:
     name = f"raw_{run_date.replace('-', '')}.json"
     db_args = ["--db", str(args.db)]
 
-    # Step 1–2：抓取只重試失敗的那一組，不重跑已成功的組別
+    # Steps 1-2: fetch retries only the query that failed, never ones that already succeeded
     def do_scrape():
         return fetch.scrape(token, cfg["apify"], args.max_jobs, backoff)
 
-    items, failed = with_retries("Step 1 抓取", [], do_scrape)
+    items, failed = with_retries("Step 1 fetch", [], do_scrape)
     if not items:
         if failed:
-            raise StepFailed("Step 1 抓取", f"所有搜尋組別都失敗（{', '.join(failed)}）")
-        log("Apify 沒有回傳任何職缺，今天沒有新資料。")
+            raise StepFailed("Step 1 fetch", f"all queries failed ({', '.join(failed)})")
+        log("Apify returned no jobs; no new data today.")
         return {"raw_count": 0, "failed_queries": [], "stats": {"main": 0, "custom": 0, "by_track": {}, "tokens": {}, "failures": 0}}
     cap = daily["max_total_jobs"]
     if len(items) > cap:
-        log(f"⚠️ 抓到 {len(items)} 筆，超過整體上限 {cap}，只保留前 {cap} 筆。")
+        log(f"⚠️ Fetched {len(items)} jobs, over the overall cap of {cap}; keeping the first {cap}.")
         items = items[:cap]
     raw_path = fetch.save_raw(items, run_date.replace("-", ""))
-    with_retries("Step 2 瘦身", backoff, lambda: fetch.process_raw_file(raw_path))
+    with_retries("Step 2 slim", backoff, lambda: fetch.process_raw_file(raw_path))
 
     stats_path = LOG_DIR / f"stats_{run_date}.json"
     stats_path.unlink(missing_ok=True)
-    with_retries("Step 3 去重", backoff, lambda: run_script("dedup.py", ["--only", name, *db_args]))
-    with_retries("Step 4 篩選", backoff, lambda: run_script("filter.py", ["--only", name, *db_args]))
-    with_retries("Step 5–6 評分與輸出", backoff,
+    with_retries("Step 3 dedup", backoff, lambda: run_script("dedup.py", ["--only", name, *db_args]))
+    with_retries("Step 4 filter", backoff, lambda: run_script("filter.py", ["--only", name, *db_args]))
+    with_retries("Steps 5-6 scoring and output", backoff,
                  lambda: run_script("score.py", ["--only", name, "--stats-json", str(stats_path), *db_args]))
     if not stats_path.exists():
-        raise StepFailed("Step 5–6 評分與輸出", "沒有產生統計檔（沒有符合的輸入檔？）")
+        raise StepFailed("Steps 5-6 scoring and output", "no stats file was produced (no matching input file?)")
     return {
         "raw_count": len(items),
         "failed_queries": failed,
@@ -247,10 +247,10 @@ def cleanup_logs(keep_days: int) -> None:
 def main() -> int:
     global _log_file
     parser = argparse.ArgumentParser()
-    parser.add_argument("--force", action="store_true", help="同一天已成功也重跑")
-    parser.add_argument("--no-notify", action="store_true", help="不發通知（測試用）")
-    parser.add_argument("--max-jobs", type=int, help="測試用：每組搜尋最多抓幾筆")
-    parser.add_argument("--db", type=Path, default=DB_PATH, help="資料庫路徑（測試時用 test.db）")
+    parser.add_argument("--force", action="store_true", help="rerun even if today already succeeded")
+    parser.add_argument("--no-notify", action="store_true", help="no notification (for testing)")
+    parser.add_argument("--max-jobs", type=int, help="testing: at most this many jobs per query")
+    parser.add_argument("--db", type=Path, default=DB_PATH, help="database path (use test.db when testing)")
     args = parser.parse_args()
 
     cfg = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -266,29 +266,29 @@ def main() -> int:
     if prior and not args.force:
         status, started = prior
         if status == "success":
-            log(f"{run_date} 已成功執行過，略過（要重跑請加 --force）。")
+            log(f"{run_date} already succeeded; skipping (add --force to rerun).")
             return 0
         age = datetime.now() - datetime.fromisoformat(started)
         if status == "running" and age < timedelta(hours=STALE_RUNNING_HOURS):
-            log(f"{run_date} 已有執行中的流程（{started} 開始），略過。")
+            log(f"{run_date} already has a run in progress (started {started}); skipping.")
             return 0
 
-    log(f"===== 每日執行 {run_date} 開始 =====")
+    log(f"===== Daily run {run_date} started =====")
     gap = days_since_last_success(conn, run_date)
     start_run(conn, run_date)
     try:
         for key in ("APIFY_TOKEN", "ANTHROPIC_API_KEY"):
             if not os.environ.get(key):
-                raise StepFailed("環境設定", f"找不到 {key}")
+                raise StepFailed("environment", f"{key} not found")
         result = pipeline(args, cfg, os.environ["APIFY_TOKEN"], run_date)
     except StepFailed as e:
-        log(f"❌ 失敗：{e}")
+        log(f"❌ Failed: {e}")
         finish_run(conn, run_date, "failed", error=str(e))
         if not args.no_notify:
             notify(topic, fill(TX["notify_failed"], step=e.step, detail=e.detail), failure=True)
         return 1
-    except Exception as e:  # 預期外的錯誤也要通知，不然你只會看到沉默
-        log(f"❌ 預期外錯誤：{e!r}")
+    except Exception as e:  # unexpected errors are notified too, otherwise you would only see silence
+        log(f"❌ Unexpected error: {e!r}")
         finish_run(conn, run_date, "failed", error=repr(e))
         notify(topic, fill(TX["notify_unexpected"], error=repr(e)), failure=True)
         return 1
@@ -300,7 +300,7 @@ def main() -> int:
     if result["raw_count"]:
         write_calibration(run_date)
     message = success_message(stats, result["failed_queries"], gap)
-    log(f"===== 完成：{message} =====")
+    log(f"===== Done: {message} =====")
     notify(topic, message)
     return 0
 

@@ -1,10 +1,10 @@
 """
-階段二：去重。
-規則一：jobId 已存在於 jobs.db -> 跳過（不重複寫入）。
-recommended_date 非空代表曾進短名單（永久保留）；為空代表只是看過（日後可定期清理）。
-規則二：同一公司（companyId 優先，缺值用 company 名稱）且 description 正規化後完全相同 -> 視為重複，
-       保留最先出現的那筆，其餘標記 duplicate_of。
-比對範圍涵蓋「同一次抓取內部」與「jobs.db 歷史全部資料」。
+Stage 3: dedup.
+Rule 1: a jobId that already exists in jobs.db is skipped (not written again).
+A non-empty recommended_date means the job was once on a shortlist (kept forever); empty means it was only seen (can be cleaned up later).
+Rule 2: the same company (companyId first, company name if missing) with an identical normalized description counts as a duplicate;
+       the first one seen is kept and the others are marked duplicate_of.
+The comparison covers both the current fetch and everything in jobs.db.
 """
 
 import argparse
@@ -121,11 +121,11 @@ def process_slim_file(conn: sqlite3.Connection, path: Path) -> None:
 
     result = dedup_batch(conn, jobs)
 
-    print(f"讀取：{path}")
-    print(f"輸入筆數：{len(jobs)}")
-    print(f"保留（新職缺）：{len(result['kept'])}")
-    print(f"跳過（jobId 已存在）：{len(result['skipped_seen_job_id'])}")
-    print(f"跳過（同公司同描述重複）：{len(result['skipped_duplicate_content'])}")
+    print(f"Read: {path}")
+    print(f"Input jobs: {len(jobs)}")
+    print(f"Kept (new jobs): {len(result['kept'])}")
+    print(f"Skipped (jobId already seen): {len(result['skipped_seen_job_id'])}")
+    print(f"Skipped (same company, same description): {len(result['skipped_duplicate_content'])}")
     for dup_id, kept_id in result["skipped_duplicate_content"]:
         print(f"    {dup_id} -> duplicate_of {kept_id}")
 
@@ -134,21 +134,21 @@ def process_slim_file(conn: sqlite3.Connection, path: Path) -> None:
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(result["kept"], f, ensure_ascii=False, indent=2)
 
-    print(f"已存檔至：{out_path}")
+    print(f"Saved to: {out_path}")
     print("-" * 50)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", type=Path, default=DB_PATH, help="資料庫路徑（測試時用 test.db）")
-    parser.add_argument("--only", help="只處理指定檔名（每日執行用，例如 raw_20261004.json）")
+    parser.add_argument("--db", type=Path, default=DB_PATH, help="database path (use test.db when testing)")
+    parser.add_argument("--only", help="process only this file name (used by the daily run, e.g. raw_20261004.json)")
     args = parser.parse_args()
     conn = init_db(args.db)
     slim_files = sorted(SLIM_DIR.glob("*.json"))
     if args.only:
         slim_files = [f for f in slim_files if f.name == args.only]
     if not slim_files:
-        print(f"{SLIM_DIR}/ 底下沒有找到任何 .json 檔案，請先執行 scripts/execution-python/fetch.py。")
+        print(f"No .json files found in {SLIM_DIR}/. Run scripts/execution-python/fetch.py first.")
     for slim_path in slim_files:
         process_slim_file(conn, slim_path)
     conn.close()

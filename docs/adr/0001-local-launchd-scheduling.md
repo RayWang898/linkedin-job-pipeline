@@ -1,5 +1,5 @@
-# 每日執行用本機 launchd，不用雲端
+# The daily run uses local launchd, not the cloud
 
-每日 8:00 的自動執行跑在使用者的 Mac 上（launchd，加 `pmset` 在 7:55 喚醒），不使用 GitHub Actions 或雲端排程。原因是 `jobs.db`、`profiles/`、`resumes/` 都是個人資料，搬上雲端要處理上傳、同步回 Obsidian 資料夾與金鑰保管；放在本機則 Obsidian 流程完全不變。
+The automatic daily run (for example at 8:00) runs on the user's own Mac with launchd, plus `pmset` to wake the Mac a few minutes earlier. It does not use GitHub Actions or a cloud scheduler. The reason is that `jobs.db`, `profiles/` and `resumes/` are personal data; moving them to the cloud would mean handling uploads, syncing the notes back to the user's notes folder, and storing the API keys. Keeping everything local leaves the user's existing note workflow unchanged.
 
-代價：Mac 必須在睡前接上電源（闔蓋也可以），喚醒才可靠；筆電沒接電源或整天沒醒時，當天不會跑，launchd 會在下次喚醒時補跑，補跑結果同樣會通知。若這個限制變得無法接受，替代方案是把資料與執行搬到雲端或常駐主機，屆時要重新處理資料同步。
+Cost: the Mac has to be plugged in before sleep (a closed lid is fine) for the wake-up to be reliable. If a laptop is unplugged or never wakes during the day, that day's run does not happen; launchd runs it at the next wake and the make-up run is notified like any other. If this limit becomes unacceptable, the alternative is to move the data and the run to the cloud or an always-on host, which would require redoing the data sync.

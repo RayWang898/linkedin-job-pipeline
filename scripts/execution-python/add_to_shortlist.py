@@ -1,21 +1,21 @@
-"""把單筆職缺補進某一天的短名單。兩種來源：
+"""Add a single job to the shortlist of a given day. Three sources:
 
-1. LinkedIn 職缺（例如被篩選誤殺、但使用者已經投遞）：給 jobId，從 data/2_slim/ 找出職缺（要有 description）。
-   排名接在該日現有最大 rank 之後，並把 jobs 表的 recommended_date 設成該日期。
-2. 抓取範圍外的 LinkedIn 職缺（例如其他城市）：同時給 jobId 與 --file、--title、--company，描述用文字檔。
-   property 為 source: linkedin、有 jobId 與 rank，但沒有刊登日、應徵人數、抓取日；並把 jobId 寫進 jobs 表，之後被抓到時會被去重擋下。
-3. 非 LinkedIn 職缺：用 --file 給職缺描述文字檔，並給 --title、--company。property 會有 source: other、
-   沒有 jobId、rank 與應徵人數；資料夾名稱不帶排名前綴。
+1. A LinkedIn job (for example one the filter wrongly excluded but you already applied to): give the jobId; the job is found in data/2_slim/ (it needs a description).
+   It is ranked after the largest existing rank of that day, and recommended_date in the jobs table is set to that date.
+2. A LinkedIn job outside the fetch scope (for example another city): give the jobId together with --file, --title and --company; the description comes from a text file.
+   The properties have source: linkedin, a jobId and a rank, but no posted date, applicant count or scraped date; the jobId is written to the jobs table so a later fetch of it is stopped by dedup.
+3. A non-LinkedIn job: give the description text file with --file, plus --title and --company. The properties have source: other,
+   no jobId, rank or applicant count; the folder name has no rank prefix.
 
-兩種都會做初評、詳評、SUMMARY（同 score.py，沿用快取），再在 data/7_shortlist/<日期>/ 建立職缺資料夾與 .md。
-非 LinkedIn 職缺若資料夾已存在（例如先手動放了履歷與 cover letter）且 .md 還沒有 SUMMARY，就沿用該資料夾，
-只重寫 .md，保留 status、interest 與 user note，不動資料夾內的其他檔案。其餘情況不動既有職缺的資料夾。
+All three run triage, detailed review and SUMMARY (same as score.py, using the cache), then create the job folder and .md under data/7_shortlist/<date>/.
+If the folder of a non-LinkedIn job already exists (for example you put a resume and cover letter there by hand) and its .md has no SUMMARY yet, that folder is reused:
+only the .md is rewritten, keeping status, interest and user note, and nothing else in the folder is touched. In every other case an existing job folder is left alone.
 
-用法：
-  venv/bin/python scripts/execution-python/add_to_shortlist.py <jobId> [--date 2026-10-04] [--status applied]
+Usage:
+  venv/bin/python scripts/execution-python/add_to_shortlist.py <jobId> [--date YYYY-MM-DD] [--status applied]
   venv/bin/python scripts/execution-python/add_to_shortlist.py <jobId> --file jd.txt --title ... --company ... [--location ...]
   venv/bin/python scripts/execution-python/add_to_shortlist.py --file jd.txt --title "Technical Writer" \
-      --company "Curio Science" [--location ...] [--url ...] [--salary ...] [--date ...] [--status ...]
+      --company "Example Co" [--location ...] [--url ...] [--salary ...] [--date ...] [--status ...]
 """
 
 import argparse
@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 import anthropic
@@ -36,13 +37,13 @@ LINKEDIN_JOB_URL = "https://www.linkedin.com/jobs/view/{}"
 
 
 def find_job(job_id: str) -> tuple[dict, str]:
-    """回傳 (職缺, 抓取日)。從最新的瘦身檔往回找，要有 description 才算。"""
+    """Return (job, scraped date). Search the slim files from newest to oldest; a job only counts if it has a description."""
     for path in sorted(SLIM_DIR.glob("*.json"), reverse=True):
         for job in json.loads(path.read_text(encoding="utf-8")):
             if str(job.get("jobId")) == job_id and job.get("description"):
                 m = re.search(r"(\d{4})(\d{2})(\d{2})", path.stem)
                 return job, "-".join(m.groups()) if m else ""
-    sys.exit(f"{SLIM_DIR}/ 裡找不到 jobId {job_id}（或沒有 description）。")
+    sys.exit(f"jobId {job_id} not found in {SLIM_DIR}/ (or it has no description).")
 
 
 def next_rank(day_dir: Path) -> int:
@@ -51,12 +52,12 @@ def next_rank(day_dir: Path) -> int:
 
 
 def manual_linkedin_job(args) -> dict:
-    """抓取範圍外的 LinkedIn 職缺：有 jobId，但資料來自使用者給的描述文字檔，沒有刊登日與應徵人數。"""
+    """A LinkedIn job outside the fetch scope: it has a jobId, but the data comes from the description file you give, with no posted date or applicant count."""
     if not (args.title and args.company):
-        sys.exit("手動補 LinkedIn 職缺需要 --title、--company（描述用 --file）。")
+        sys.exit("Adding a LinkedIn job by hand needs --title and --company (and the description in --file).")
     description = args.file.read_text(encoding="utf-8").strip()
     if not description:
-        sys.exit(f"{args.file} 是空的。")
+        sys.exit(f"{args.file} is empty.")
     return {
         "jobId": args.job_id, "source": "linkedin", "title": args.title, "company": args.company,
         "location": args.location, "jobUrl": args.url or LINKEDIN_JOB_URL.format(args.job_id),
@@ -65,12 +66,12 @@ def manual_linkedin_job(args) -> dict:
 
 
 def other_job(args) -> dict:
-    """非 LinkedIn 職缺：jobId 只當評分快取的鍵（other- 開頭），不會寫進 property。"""
+    """A non-LinkedIn job: the jobId is only a score-cache key (starts with other-) and is not written to the properties."""
     if not (args.file and args.title and args.company):
-        sys.exit("非 LinkedIn 職缺需要 --file、--title、--company。")
+        sys.exit("A non-LinkedIn job needs --file, --title and --company.")
     description = args.file.read_text(encoding="utf-8").strip()
     if not description:
-        sys.exit(f"{args.file} 是空的。")
+        sys.exit(f"{args.file} is empty.")
     return {
         "jobId": f"other-{score.slug(args.company)}-{score.slug(args.title)}",
         "source": "other", "title": args.title, "company": args.company,
@@ -81,11 +82,11 @@ def other_job(args) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("job_id", nargs="?", help="LinkedIn jobId；非 LinkedIn 職缺不給，改用 --file")
-    parser.add_argument("--date", default="2026-10-04", help="要補進哪一天的短名單（YYYY-MM-DD）")
-    parser.add_argument("--status", help="status property，例如 applied；預設 backlog，重寫既有 .md 時預設沿用原值")
+    parser.add_argument("job_id", nargs="?", help="LinkedIn jobId; leave out for a non-LinkedIn job and use --file instead")
+    parser.add_argument("--date", default=date.today().isoformat(), help="which day's shortlist to add to (YYYY-MM-DD, default today)")
+    parser.add_argument("--status", help="status property, e.g. applied; default backlog, or the existing value when an existing .md is rewritten")
     parser.add_argument("--db", type=Path, default=score.DB_PATH)
-    parser.add_argument("--file", type=Path, help="非 LinkedIn 職缺：職缺描述文字檔")
+    parser.add_argument("--file", type=Path, help="non-LinkedIn job: text file with the job description")
     parser.add_argument("--title")
     parser.add_argument("--company")
     parser.add_argument("--location")
@@ -93,16 +94,16 @@ if __name__ == "__main__":
     parser.add_argument("--salary")
     args = parser.parse_args()
     if not (args.job_id or args.file):
-        sys.exit("請給 LinkedIn jobId，或用 --file 加入非 LinkedIn 職缺（兩者都給＝抓取範圍外的 LinkedIn 職缺）。")
+        sys.exit("Give a LinkedIn jobId, or add a non-LinkedIn job with --file (giving both means a LinkedIn job outside the fetch scope).")
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("找不到 ANTHROPIC_API_KEY，請在 .env 設定或匯出環境變數。")
+        sys.exit("ANTHROPIC_API_KEY not found. Set it in .env or export it as an environment variable.")
 
     day_dir = score.SHORTLIST_DIR / args.date
     day_dir.mkdir(parents=True, exist_ok=True)
     if args.job_id:
         if score.find_job_folder(day_dir, args.job_id):
-            sys.exit(f"{day_dir} 已經有 jobId {args.job_id}，不重複加入。")
+            sys.exit(f"{day_dir} already has jobId {args.job_id}; not adding it again.")
         if args.file:
             job, scraped_date = manual_linkedin_job(args), None
         else:
@@ -115,7 +116,7 @@ if __name__ == "__main__":
     md = folder / f"{folder.name}.md"
     reuse = not args.job_id and md.exists() and "## SUMMARY" not in md.read_text(encoding="utf-8")
     if folder.exists() and not reuse:
-        sys.exit(f"{folder} 已經存在，不重複加入。")
+        sys.exit(f"{folder} already exists; not adding it again.")
     status = [args.status] if args.status else ((score.read_status(md) if reuse else None) or ["backlog"])
     user_note = score.read_user_note(md) if reuse else ""
     interest = score.read_interest(md) if reuse else ""
@@ -129,10 +130,10 @@ if __name__ == "__main__":
 
     triage = score.triage_job(conn, client, config, profiles, usages["triage"], job)
     if triage is None:
-        sys.exit("初評失敗，沒有寫入。")
+        sys.exit("Triage failed; nothing written.")
     job = {**job, "triage": triage}
     if reuse and (custom_resume := score.read_frontmatter(md).get("resume")):
-        job["resume_file"] = custom_resume  # 使用者已放進資料夾的客製履歷，不被路線預設履歷蓋掉
+        job["resume_file"] = custom_resume  # a custom resume you already put in the folder is not overwritten by the track default
     job["detail"] = score.detail_job(conn, client, config, profiles, usages["detail"], job)
     job["summary"] = score.summarize_job(client, config, usages["summary"], job)
 
@@ -146,6 +147,6 @@ if __name__ == "__main__":
         conn.commit()
     conn.close()
 
-    print(f"已寫入：{folder}/{folder.name}.md（rank {rank or '無'}，最佳 {triage['best_track']} {triage['best_score']} 分）")
+    print(f"Written: {folder}/{folder.name}.md (rank {rank or 'none'}, best {triage['best_track']} {triage['best_score']})")
     for label, u in usages.items():
         print(f"{label} usage: {u.line()}")
