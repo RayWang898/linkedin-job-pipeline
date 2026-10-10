@@ -29,6 +29,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import score  # noqa: E402
+from filter import visa_settings  # noqa: E402
 
 FEEDBACK_DIR = Path("feedback")
 
@@ -43,7 +44,7 @@ def sample_jobs(scored: list[dict], positives: int, others: int, seed: int) -> l
 def replay_one(client, config, profiles, usage, job: dict, model: str) -> dict | None:
     cfg = config["scoring"]
     raw = score.call_model(client, cfg.get("provider", "anthropic"), model, score.triage_system(profiles),
-                           score.triage_user_prompt(job, cfg["triage_description_chars"], config.get("visa_skip_locations")),
+                           score.triage_user_prompt(job, cfg["triage_description_chars"], visa_settings(config)["skip_locations"]),
                            score.TRIAGE_TOOL, score.validate_triage, usage)
     return score.finalize_triage(raw) if raw else None
 

@@ -27,7 +27,7 @@ import yaml
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 from dedup import init_db
-from filter import effective_applicant_count
+from filter import effective_applicant_count, visa_settings
 
 DATA_DIR = Path("data")
 FILTERED_DIR = DATA_DIR / "4_filtered"
@@ -64,6 +64,8 @@ def load_tracks(path: Path = CONFIG_PATH) -> dict:
 
 
 TRACKS = load_tracks()
+with CONFIG_PATH.open(encoding="utf-8") as _f:
+    VISA_ENABLED = visa_settings(yaml.safe_load(_f))["enabled"]
 SHARED_FILE = "shared.md"
 UNKNOWN_APPLICANTS = 10**9  # 應徵人數未知時，排序放最後
 
@@ -82,15 +84,22 @@ TRIAGE_TOOL = {
                 "type": "boolean",
                 "description": "職缺是否屬於 shared.md「值得客製的職缺類型」清單中的任一類型。",
             },
-            "visa_blocked": {
-                "type": "boolean",
-                "description": "職缺原文是否明確表示不提供簽證 sponsor、不支援 OPT／STEM OPT，或要求公民／永久居民身分。只要求「須有美國工作授權」不算。",
-            },
-            "reason": {"type": "string", "description": "一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分；visa_blocked 為 true 時要提到簽證。"},
+            "reason": {"type": "string", "description": "一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分。"},
         },
-        "required": ["scores", "custom_family", "visa_blocked", "reason"],
+        "required": ["scores", "custom_family", "reason"],
     },
 }
+if VISA_ENABLED:  # the visa feature adds one field; with it off, the schema has no visa_blocked
+    _schema = TRIAGE_TOOL["input_schema"]
+    _props = _schema["properties"]
+    _reason = _props.pop("reason")
+    _reason["description"] = _reason["description"][:-1] + "；visa_blocked 為 true 時要提到簽證。"
+    _props["visa_blocked"] = {
+        "type": "boolean",
+        "description": "職缺原文是否明確表示不提供簽證 sponsor、不支援 OPT／STEM OPT，或要求公民／永久居民身分。只要求「須有美國工作授權」不算。",
+    }
+    _props["reason"] = _reason
+    _schema["required"] = ["scores", "custom_family", "visa_blocked", "reason"]
 
 DETAIL_TOOL = {
     "name": "submit_detail",
@@ -151,12 +160,15 @@ RUBRIC = """\
 0 = 完全不相關
 
 另外判斷 custom_family：職缺是否屬於 shared.md「值得客製的職缺類型」清單中的任一類型。
-reason 用繁體中文一句話，不超過 40 字。
+reason 用繁體中文一句話，不超過 40 字。"""
 
+VISA_RUBRIC = """
 簽證：求職者持 OPT（目前有合法工作授權，但之後需要雇主 sponsor）。請讀 <job> 和其中的 <visa_excerpts>（取自完整描述的簽證相關片段），設定 visa_blocked：
 - true：原文明確表示不提供簽證 sponsor（含「現在或未來」），或明確不支援 OPT／STEM OPT／CPT／H-1B 申請者，或要求美國公民／永久居民身分。
 - false：其他情況，包括只寫「須具備美國工作授權（authorized to work）」而沒有提到 sponsor 或 OPT 的限制、願意 sponsor、或完全沒提。
 visa_blocked 為 true 時，各條路線的分數仍照常依職缺內容評，程式會把分數壓到 1；reason 要提到簽證。"""
+
+RUBRIC = RUBRIC + ("\n" + VISA_RUBRIC if VISA_ENABLED else "")
 
 DETAIL_INSTRUCTIONS = """\
 你是求職顧問。根據 <profiles>（求職者背景與其最適合的路線）、完整職缺內容與初評結果，
@@ -169,7 +181,9 @@ DETAIL_INSTRUCTIONS = """\
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
     with path.open(encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    visa_settings(config)  # fail early on an outdated config
+    return config
 
 
 # ---------- profiles ----------
@@ -271,8 +285,8 @@ def validate_triage(data: dict) -> None:
     for t in TRACKS:
         if not isinstance(scores[t], int) or not 0 <= scores[t] <= 5:
             raise ValueError(f"路線 {t} 分數不合法：{scores[t]!r}")
-    if (not isinstance(data["custom_family"], bool) or not isinstance(data["visa_blocked"], bool)
-            or not str(data["reason"]).strip()):
+    if (not isinstance(data["custom_family"], bool) or not str(data["reason"]).strip()
+            or (VISA_ENABLED and not isinstance(data["visa_blocked"], bool))):
         raise ValueError("custom_family、visa_blocked 或 reason 不合法")
 
 
@@ -364,7 +378,7 @@ def triage_user_prompt(job: dict, chars: int, visa_skip_locations: list[str] | N
     }
     location = (job.get("location") or "").lower()
     skip_visa = any(loc.lower() in location for loc in (visa_skip_locations or []))  # 例如求職者本國的地點不需要 sponsor
-    excerpts = [] if skip_visa else visa_excerpts(job.get("description") or "")
+    excerpts = [] if skip_visa or not VISA_ENABLED else visa_excerpts(job.get("description") or "")
     visa_block = ""
     if excerpts:
         visa_block = "\n\n<visa_excerpts>\n" + "\n".join(f"- {e}" for e in excerpts) + "\n</visa_excerpts>"
@@ -376,7 +390,7 @@ def finalize_triage(raw: dict) -> dict:
 
     visa_blocked 為 true 時，各條路線的分數一律壓到 1（原始分數存在 scores_raw，方便事後檢查或撈回），且不算需客製。
     """
-    visa_blocked = bool(raw.get("visa_blocked"))
+    visa_blocked = VISA_ENABLED and bool(raw.get("visa_blocked"))
     scores = {t: min(raw["scores"][t], 1) for t in TRACKS} if visa_blocked else raw["scores"]
     best_track = max(TRACKS, key=lambda t: (scores[t], -list(TRACKS).index(t)))
     best_score = scores[best_track]
@@ -401,7 +415,7 @@ def triage_job(conn, client, config, profiles, usage, job: dict) -> dict | None:
     if cached:
         return cached
     raw = call_model(client, cfg.get("provider", "anthropic"), model, triage_system(profiles),
-                     triage_user_prompt(job, cfg["triage_description_chars"], config.get("visa_skip_locations")),
+                     triage_user_prompt(job, cfg["triage_description_chars"], visa_settings(config)["skip_locations"]),
                      TRIAGE_TOOL, validate_triage, usage)
     if raw is None:
         return None

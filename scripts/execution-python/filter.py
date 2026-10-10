@@ -9,6 +9,7 @@ import argparse
 import json
 import re
 import sqlite3
+import sys
 import time
 from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
@@ -27,9 +28,25 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "linkedin-job-search-tool (personal use)"
 
 
+def visa_settings(config: dict) -> dict:
+    """Normalized `visa:` section: {enabled, skip_locations, exclude_patterns}. Off unless `visa.enabled` is true."""
+    old = [k for k in ("visa_skip_locations", "exclude_visa_patterns") if k in config]
+    if old:
+        sys.exit(f"config.yaml: {', '.join(old)} moved under `visa:` (as skip_locations / exclude_patterns). "
+                 "Add `visa:` with `enabled: true` to keep the visa rules; see config.example.yaml.")
+    section = config.get("visa") or {}
+    return {
+        "enabled": bool(section.get("enabled", False)),
+        "skip_locations": section.get("skip_locations") or [],
+        "exclude_patterns": section.get("exclude_patterns") or [],
+    }
+
+
 def load_config(path: Path = CONFIG_PATH) -> dict:
     with path.open(encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+    visa_settings(config)  # fail early on an outdated config
+    return config
 
 
 def init_geocode_cache(conn: sqlite3.Connection) -> None:
@@ -143,11 +160,14 @@ def passes_title(job: dict, config: dict) -> bool:
 
 
 def passes_visa(job: dict, config: dict) -> bool:
+    visa = visa_settings(config)
+    if not visa["enabled"]:
+        return True
     location = (job.get("location") or "").lower()
-    if any(loc.lower() in location for loc in config.get("visa_skip_locations", [])):
+    if any(loc.lower() in location for loc in visa["skip_locations"]):
         return True  # 簽證規則是針對美國 OPT；使用者在這些地點不需要 sponsor
     description = re.sub(r"\s+", " ", job.get("description") or "").lower()
-    return not any(p.lower() in description for p in config.get("exclude_visa_patterns", []))
+    return not any(p.lower() in description for p in visa["exclude_patterns"])
 
 
 def passes_unpaid(job: dict, config: dict) -> bool:

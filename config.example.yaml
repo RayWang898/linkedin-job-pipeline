@@ -32,17 +32,23 @@ exclude_title_patterns:
   - "Senior"
   - "Sr"
 
-# Locations where the visa rules below do not apply (substring match on the job's location).
-visa_skip_locations: []
-
-# Drop a job if its description contains one of these (case-insensitive substring).
-# Keep only explicit "no sponsorship" phrases to avoid false drops.
-exclude_visa_patterns:
-  - "will not sponsor"
-  - "unable to sponsor"
-  - "without sponsorship"
-  - "no sponsorship"
-  - "do not offer visa sponsorship"
+# Visa handling, for job seekers who need an employer to sponsor a work visa (the wording is written for US
+# visas such as OPT). One switch controls everything: when enabled is false (the default) there is no visa
+# filter, the scoring model is not asked about visas, and no visa text is added to the prompts.
+visa:
+  enabled: false
+  # Locations where the visa rules do not apply (substring match on the job's location).
+  skip_locations: []
+  # Step 4: drop a job if its description contains one of these (case-insensitive substring).
+  # Keep only explicit "no sponsorship" phrases to avoid false drops.
+  # Step 5: the scoring model also reads the visa-related passages of each description and
+  # drops the scores of a job that clearly refuses sponsorship.
+  exclude_patterns:
+    - "will not sponsor"
+    - "unable to sponsor"
+    - "without sponsorship"
+    - "no sponsorship"
+    - "do not offer visa sponsorship"
 
 # Unpaid / volunteer roles.
 exclude_unpaid_title_words:

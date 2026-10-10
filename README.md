@@ -12,7 +12,7 @@ fetch -> slim -> dedup -> filter -> AI scoring -> shortlist
 
 1. **Fetch:** pulls public LinkedIn job pages through an Apify actor. It does not log in and does not apply for you.
 2. **Slim and dedup:** keeps the needed fields and drops jobs seen before (SQLite).
-3. **Filter:** drops jobs by location, title, applicant count, required years, unpaid roles and staffing agencies. All rules live in `config.yaml`.
+3. **Filter:** drops jobs by location, title, applicant count, required years, unpaid roles and staffing agencies. All rules live in `config.yaml`. If you need visa sponsorship, set `visa.enabled: true` to also drop jobs that refuse it and have the scoring model flag them.
 4. **AI scoring:** a small model scores every job 0-5 for each of your tracks. A larger model writes detailed advice for the top ones.
 5. **Shortlist:** one Markdown note per job, plus a daily summary.
 
