@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template. Replace every /path/to/workspace with your own folder, then copy to ~/Library/LaunchAgents/ and load it with launchctl. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.jobsearch</string>
+
+  <!-- caffeinate -i keeps the Mac from idle-sleeping while the script runs -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
+    <string>/path/to/workspace/venv/bin/python</string>
+    <string>/path/to/workspace/scripts/execution-python/run_daily.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/path/to/workspace</string>
+
+  <!-- Every day at 8:00. If the Mac was asleep, launchd runs it on the next wake; run_daily.py skips a day that already succeeded -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>8</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <!-- Only launchd's own errors (for example python not found); normal logs go to logs/ via run_daily.py -->
+  <key>StandardErrorPath</key>
+  <string>/path/to/workspace/logs/launchd.err</string>
+  <key>StandardOutPath</key>
+  <string>/path/to/workspace/logs/launchd.out</string>
+</dict>
+</plist>

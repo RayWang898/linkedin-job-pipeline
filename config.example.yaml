@@ -1,0 +1,105 @@
+# Copy this file to config.yaml and edit it. Every value below is an example.
+
+# ---------------------------------------------------------------------------
+# Step 4 filter (filter.py)
+# ---------------------------------------------------------------------------
+
+# A job passes only if its location contains one of these strings (case-insensitive).
+# Excluded locations are printed with their distance from the center point below,
+# so you can decide whether to add them.
+location_whitelist:
+  - "Austin, TX"
+  - "Round Rock, TX"
+  - "Remote"
+
+# Only used to display how far excluded locations are. It does not affect filtering.
+location_center_address: "Austin, TX, USA"
+
+# Drop jobs with more applicants than this. (exact uses count, upper_bound uses max, lower_bound uses min.)
+max_applicants: 75
+
+# Drop a job if any of these appear in the title or description (case-insensitive substring).
+exclude_keywords: []
+
+# Drop a job if the title contains one of these as a whole word or phrase. "Lead" does not match "Leader".
+exclude_title_patterns:
+  - "Director"
+  - "Head of"
+  - "Principal"
+  - "VP"
+  - "Vice President"
+  - "Chief"
+  - "Senior"
+  - "Sr"
+
+# Locations where the visa rules below do not apply (substring match on the job's location).
+visa_skip_locations: []
+
+# Drop a job if its description contains one of these (case-insensitive substring).
+# Keep only explicit "no sponsorship" phrases to avoid false drops.
+exclude_visa_patterns:
+  - "will not sponsor"
+  - "unable to sponsor"
+  - "without sponsorship"
+  - "no sponsorship"
+  - "do not offer visa sponsorship"
+
+# Unpaid / volunteer roles.
+exclude_unpaid_title_words:
+  - "Volunteer"
+  - "Unpaid"
+exclude_unpaid_patterns:
+  - '\bunpaid\b(?!\s+(?:time\s+off|leave|vacation|days?|personal|sick|holiday|parental|medical|family|sabbatical|breaks?|lunch))'
+  - '\bvolunteer\s+(?:role|position|basis)\b'
+
+# Drop a job if its description states a minimum of this many years or more.
+# ("5+ years" is dropped; "3-5 years" uses the lower bound, 3, and passes.)
+min_years_exclude: 5
+
+# Staffing agencies: matched against the company field (case-insensitive substring).
+exclude_staffing_agencies: true
+staffing_agency_blacklist:
+  - "Example Staffing Co"
+
+# ---------------------------------------------------------------------------
+# Step 1 fetch (fetch.py)
+# ---------------------------------------------------------------------------
+apify:
+  actor: "kaix/linkedin-jobs-scraper"
+  locations: ["Austin, TX"]   # one call per location; the first is the main one
+  date_posted: "past_24h"     # past_24h / past_week / past_month
+  sort_by: "recent"           # recent / relevant
+  max_jobs_per_search: 50     # default cap per query
+  max_jobs_by_location: {}    # per-location caps, e.g. {"Austin, TX": 100}
+  max_jobs_by_query: {}       # per-query caps keyed by label, e.g. {A: 150}
+  fetch_details: true         # must stay true: descriptions are needed by Steps 4 and 5
+  query_names:                # same order as queries; labels are A, B, C ...
+    - "Marketing"
+    - "Project management"
+  queries:
+    # Boolean search strings. Quote phrases, use OR inside parentheses, then AND to require a context word.
+    - '("marketing coordinator" OR "marketing associate" OR "marketing specialist") AND (agency OR brand OR consumer)' # A
+    - '("project manager" OR "project coordinator" OR "program coordinator") AND (agency OR operations)' # B
+
+# ---------------------------------------------------------------------------
+# Step 5-6 scoring and shortlist (score.py)
+# ---------------------------------------------------------------------------
+scoring:
+  provider: "anthropic"
+  triage_model: "claude-haiku-4-5-20251001"   # scores every job
+  detail_model: "claude-sonnet-5-5"           # detailed advice, shortlisted jobs only
+  summary_model: "claude-haiku-4-5-20251001"  # short job summary for shortlisted jobs
+  triage_description_chars: 2500   # how much of the description the triage model sees
+  shortlist_min_score: 4           # best track score needed for the main shortlist
+  custom_min_score: 3              # minimum best score for the "needs custom resume" section
+  shortlist_size: 30               # main shortlist cap
+  detail_count: 10                 # how many of the top jobs get the detailed pass
+  detail_custom: true              # also run the detailed pass on "needs custom resume" jobs
+
+# ---------------------------------------------------------------------------
+# Daily run (run_daily.py)
+# ---------------------------------------------------------------------------
+daily:
+  retry_backoff_seconds: [30, 120, 300]   # wait before each retry; the length is the retry count
+  max_total_jobs: 300                     # cap on total jobs fetched after merging and dedup
+  log_keep_days: 30                       # how long to keep files in logs/

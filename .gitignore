@@ -1,0 +1,19 @@
+.env
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Personal settings and data (your workspace content)
+config.yaml
+resumes/
+profiles/
+tracker/
+feedback/
+data/
+samples/
+logs/
+
+# Databases and backups
+*.db
+*.db.bak

@@ -1,0 +1,5 @@
+pyyaml
+requests
+anthropic
+python-dotenv
+apify-client
