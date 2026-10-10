@@ -29,13 +29,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from pathlib import Path
 
-from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = Path(__file__).resolve().parent
-os.chdir(ROOT)  # 各步驟腳本都用相對路徑
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import fetch  # noqa: E402
 
 RAW_DIR = Path("data/1_raw")
@@ -126,7 +124,6 @@ def main() -> None:
         log("dry-run：不呼叫 API，結束。")
         return
 
-    load_dotenv()
     token = os.environ.get("APIFY_TOKEN")
     if todo and not token:
         sys.exit("找不到 APIFY_TOKEN，請在 .env 設定或匯出環境變數。")

@@ -36,6 +36,8 @@ cp .env.example .env                  # add your keys
 venv/bin/python scripts/execution-python/run_daily.py --no-notify --max-jobs 5 --db test.db
 ```
 
+The folder you run these commands from is your workspace: it holds `config.yaml`, `profiles/`, `.env`, `data/` and `jobs.db`. For a quick first try you can use the repo folder itself (those files are git-ignored). To keep your data apart from the engine, put them in another folder and pass `--workspace /path/to/workspace` (or set `JOBSEARCH_HOME`) to any script.
+
 Your tracks are defined in `TRACKS` in `scripts/execution-python/score.py` (two example tracks, A and B). Put your resumes in `resumes/`. `config.yaml`, `profiles/`, `resumes/`, `data/`, `.env` and the databases are git-ignored, so your personal data stays out of the repository.
 
 To run it every day on macOS, adapt `scripts/launchd/com.example.jobsearch.plist`.

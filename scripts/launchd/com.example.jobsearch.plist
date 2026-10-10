@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Template. Replace every /path/to/workspace with your own folder, then copy to ~/Library/LaunchAgents/ and load it with launchctl. -->
+<!-- Template. Replace /path/to/engine with this repo's folder and /path/to/workspace with your own data folder, then copy to ~/Library/LaunchAgents/ and load it with launchctl. -->
 <plist version="1.0">
 <dict>
   <key>Label</key>
@@ -11,8 +11,10 @@
   <array>
     <string>/usr/bin/caffeinate</string>
     <string>-i</string>
-    <string>/path/to/workspace/venv/bin/python</string>
-    <string>/path/to/workspace/scripts/execution-python/run_daily.py</string>
+    <string>/path/to/engine/venv/bin/python</string>
+    <string>/path/to/engine/scripts/execution-python/run_daily.py</string>
+    <string>--workspace</string>
+    <string>/path/to/workspace</string>
   </array>
 
   <key>WorkingDirectory</key>

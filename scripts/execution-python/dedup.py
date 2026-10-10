@@ -15,6 +15,8 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
+
 SLIM_DIR = Path("data/2_slim")
 DEDUPED_DIR = Path("data/3_deduped")
 DB_PATH = Path("jobs.db")

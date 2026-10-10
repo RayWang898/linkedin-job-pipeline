@@ -26,8 +26,8 @@ import sys
 from pathlib import Path
 
 import anthropic
-from dotenv import load_dotenv
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import dedup
 import score
 
@@ -95,7 +95,6 @@ if __name__ == "__main__":
     if not (args.job_id or args.file):
         sys.exit("請給 LinkedIn jobId，或用 --file 加入非 LinkedIn 職缺（兩者都給＝抓取範圍外的 LinkedIn 職缺）。")
 
-    load_dotenv()
     if not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("找不到 ANTHROPIC_API_KEY，請在 .env 設定或匯出環境變數。")
 

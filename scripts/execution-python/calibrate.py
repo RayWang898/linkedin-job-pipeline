@@ -12,6 +12,8 @@ from pathlib import Path
 
 import yaml
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
+
 EXCLUDED_DIR = Path("data/5_excluded")
 SCORED_DIR = Path("data/6_scored")
 SHORTLIST_DIR = Path("data/7_shortlist")

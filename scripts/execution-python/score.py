@@ -24,8 +24,8 @@ from pathlib import Path
 
 import anthropic
 import yaml
-from dotenv import load_dotenv
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 from dedup import init_db
 from filter import effective_applicant_count
 
@@ -858,7 +858,6 @@ if __name__ == "__main__":
     parser.add_argument("--summary-name", default="_summary.md", help="統計檔檔名（回補每批用不同檔名，避免覆蓋）")
     args = parser.parse_args()
 
-    load_dotenv()
     if not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("找不到 ANTHROPIC_API_KEY，請在 .env 設定或匯出環境變數。")
     try:

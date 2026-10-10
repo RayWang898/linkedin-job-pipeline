@@ -39,7 +39,7 @@ One engine codebase plus a user **workspace**. The engine (code, templates, docs
 
 ## Current state (update this section as work lands)
 - **P0 is done and pushed** to a private GitHub repo (commit `b861ed4`): the engine copied from the maintainer's private repo, personal data removed, MIT license, `config.example.yaml`, `profiles.example/`, `.env.example`, a launchd template, a draft README.
-- **The engine cannot yet run the maintainer's real setup:** paths still assume the repo folder is the data folder, and the track list is hardcoded to two example tracks in `score.py` (and `TRACK_LABELS` in `run_daily.py`). This is the first thing P1 fixes.
+- **The engine cannot yet run the maintainer's real setup:** the track list is hardcoded to two example tracks in `score.py` (and `TRACK_LABELS` in `run_daily.py`). Paths are done: every script resolves a workspace (`--workspace`, then `JOBSEARCH_HOME`, then the current directory) through `scripts/execution-python/workspace.py`. Tracks from config are the next P1 task.
 - **Prompts, notes, summaries, error messages and code comments are still in Chinese.**
 - **The visa feature is still hardcoded for a user on OPT** (a US work-authorization status): the `RUBRIC` text and the `visa_blocked` field. P1 makes it optional and off by default.
 - **Two copies of the engine exist for now:** this repo and the maintainer's old private folder, which still runs their daily schedule. Until the migration at the end of P3, engine changes are made here first, and the old folder is frozen.

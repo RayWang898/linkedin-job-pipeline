@@ -16,6 +16,8 @@ from pathlib import Path
 import requests
 import yaml
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
+
 DEDUPED_DIR = Path("data/3_deduped")
 FILTERED_DIR = Path("data/4_filtered")
 EXCLUDED_DIR = Path("data/5_excluded")

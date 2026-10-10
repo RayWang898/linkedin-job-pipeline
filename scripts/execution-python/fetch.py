@@ -20,7 +20,8 @@ from datetime import date
 from pathlib import Path
 
 import yaml
-from dotenv import load_dotenv
+
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 
 SAMPLES_DIR = Path("samples")
 RAW_DIR = Path("data/1_raw")
@@ -222,7 +223,6 @@ if __name__ == "__main__":
             process_raw_file(sample_path)
         sys.exit(0)
 
-    load_dotenv()
     token = os.environ.get("APIFY_TOKEN")
     if not token:
         sys.exit("找不到 APIFY_TOKEN，請在 .env 設定或匯出環境變數。")

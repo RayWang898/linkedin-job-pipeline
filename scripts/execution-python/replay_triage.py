@@ -23,13 +23,11 @@ from datetime import date
 from pathlib import Path
 
 import anthropic
-from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = Path(__file__).resolve().parent
-os.chdir(ROOT)
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import score  # noqa: E402
 
 FEEDBACK_DIR = Path("feedback")
@@ -98,7 +96,6 @@ def main() -> None:
     parser.add_argument("--model", help="要重播的模型（預設 config 的 triage_model）")
     args = parser.parse_args()
 
-    load_dotenv()
     if not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("找不到 ANTHROPIC_API_KEY，請在 .env 設定或匯出環境變數。")
     config = score.load_config()

@@ -23,13 +23,11 @@ from pathlib import Path
 
 import requests
 import yaml
-from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = Path(__file__).resolve().parent
-os.chdir(ROOT)  # 各步驟腳本都用相對路徑，排程啟動時的工作目錄不一定是專案根目錄
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import fetch  # noqa: E402
 from dedup import init_db  # noqa: E402
 
@@ -253,7 +251,6 @@ def main() -> int:
     parser.add_argument("--db", type=Path, default=DB_PATH, help="資料庫路徑（測試時用 test.db）")
     args = parser.parse_args()
 
-    load_dotenv()
     cfg = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     run_date = date.today().isoformat()
     LOG_DIR.mkdir(exist_ok=True)
