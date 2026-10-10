@@ -90,7 +90,7 @@ You pay two providers. Check both price pages before you rely on these numbers; 
 
 **Anthropic (scoring).** Measured on the author's setup, which fetches about 650 postings a day and scores them on four tracks: roughly 0.24M input, 0.03M output, 0.02M cache-write and 0.9M cache-read tokens a day, across triage and detailed review. At the list prices of October 2026 (Haiku 4.5: $1 input / $5 output per million tokens, used for triage and summaries; Sonnet 5.5: $2 / $10, used for the detailed review; cache reads about a tenth of the input price) that is about **$0.5 to $1 a day**, or $15 to $30 a month. A rough rule from a measured sample: triaging one job costs about a quarter of a cent with Haiku 4.5.
 
-**Apify (fetching).** The default actor lists "from $0.05 per 1,000 jobs" plus Apify platform usage (compute), which depends on how many jobs you fetch and on run time. We have not measured it; look at your Apify console after the first full run.
+**Apify (fetching).** The default actor charges per event: $0.00006 for each job, $0.00001 for each job whose full description it also fetches (`apify.fetch_details`, which the pipeline needs), and $0.00005 each time a search starts, plus Apify platform usage (compute). A real test run (one search, 5 jobs) was billed $0.0004 in all, and its compute (0.0006 compute units) showed as $0.000. At about 650 postings a day over 14 searches that is roughly $0.05 a day, or $1.50 a month, before compute. Compute depends on how long a run takes and was not measurable at test size, so check the Apify console after your first full-size run.
 
 What moves the bill:
 
