@@ -29,8 +29,15 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
+
+if "--dry-run" in sys.argv:  # report only: handled before the heavy imports so a broken config is reported instead of a traceback
+    import check
+
+    sys.exit(check.main())
+
 import fetch  # noqa: E402
 import score  # noqa: E402
+from check import CATCH_UP_DAYS, STALE_RUNNING_HOURS  # noqa: E402
 from dedup import init_db  # noqa: E402
 
 TX, fill = score.TX, score.fill
@@ -38,11 +45,9 @@ TX, fill = score.TX, score.fill
 LOG_DIR = Path("logs")
 DB_PATH = Path("jobs.db")
 CONFIG_PATH = Path("config.yaml")
-CATCH_UP_DAYS = 3  # an earlier day that failed after fetching is finished first, if it is at most this many days old
 STEPS = ("fetch", "dedup", "filter", "score")
 DATA_DIR = Path("data")
 STAGE_DIRS = ("1_raw", "2_slim", "3_deduped", "4_filtered", "5_excluded", "6_scored")
-STALE_RUNNING_HOURS = 3  # a run still marked running after this long is treated as an earlier abnormal stop
 
 _log_file = None
 
@@ -364,6 +369,8 @@ def main() -> int:
     global _log_file
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="run today again from the start with a new fetch; today's earlier files are moved to data/_replaced/")
+    parser.add_argument("--dry-run", action="store_true", help="check the workspace and print what a run would do; no network, no model calls, nothing written")
+    parser.add_argument("--json", action="store_true", help="with --dry-run: print the report as JSON")
     parser.add_argument("--no-catch-up", action="store_true", help="do not finish earlier days that failed after fetching")
     parser.add_argument("--no-notify", action="store_true", help="no notification (for testing)")
     parser.add_argument("--max-jobs", type=int, help="testing: at most this many jobs per query")

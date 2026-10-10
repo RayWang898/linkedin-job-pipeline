@@ -35,7 +35,7 @@ Do these in order. Stop for the user's go-ahead at the end of steps 2 to 7.
 ### 1. Workspace
 
 - Ask where the user's data should live (suggest `~/jobsearch`, outside this repository). If the folder already has a `config.yaml` or `profiles/`, ask whether to update them or start over. Never overwrite a file without asking.
-- Create the folder and copy in `config.example.yaml` as `config.yaml`, `profiles.example/` as `profiles/`, and `.env.example` as `.env`.
+- Create it with `"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/init.py" <folder>`. It copies in `config.yaml`, `profiles/` and `.env` from the examples, adds a `.gitignore`, and never overwrites a file that is already there.
 - Ask the user to paste their `APIFY_TOKEN` and `ANTHROPIC_API_KEY` into `.env` themselves. Check afterwards that both are non-empty without printing them (for example `grep -c '^APIFY_TOKEN=.' .env`).
 
 ### 2. Background (`profiles/shared.md`)
@@ -60,13 +60,13 @@ Show every file you are about to write or change, in full, one at a time, and wr
 
 ### 7. Check the setup without spending anything
 
-From the workspace, run this. It loads `config.yaml` (tracks, visa, `prompts.yaml`, `texts.yaml`) and every profile file the tracks name, and stops with a plain message if anything is wrong. It makes no network calls.
+From the workspace run:
 
 ```bash
-cd "$WORKSPACE" && "$ENGINE/venv/bin/python" -c "import sys; sys.path.insert(0, '$ENGINE/scripts/execution-python'); import score; score.load_profiles(); print('config and profiles ok')"
+"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py" --dry-run
 ```
 
-Fix what it reports and run it again until it prints `config and profiles ok`. (A `--dry-run` command is planned and will replace this.)
+It checks `config.yaml` (tracks, visa, `prompts.yaml`, `texts.yaml`), every profile file the tracks name, and that both keys are set, and it prints how many searches and jobs a real run would make. It makes no network call and writes nothing. Fix every `ERROR` line and run it again until it ends with `Ready.` Read the `WARN` lines with the user: a profile "identical to the template" or with `(unconfirmed)` markers left means step 2 or 3 is not finished.
 
 ### 8. Test run, then iterate
 

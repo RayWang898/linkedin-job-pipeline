@@ -41,15 +41,15 @@ python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 ```
 
-**2. Create your workspace.** The workspace is a folder of your own that holds your config, profiles, data and keys, kept apart from the engine. Any empty folder will do:
+**2. Create your workspace.** The workspace is a folder of your own that holds your config, profiles, data and keys, kept apart from the engine. `init.py` creates it from the examples (it never overwrites a file that is already there, and adds a `.gitignore` that keeps your keys and data out of git):
 
 ```bash
 ENGINE="$PWD"                      # the folder you just cloned
-mkdir ~/jobsearch && cd ~/jobsearch
-cp "$ENGINE/config.example.yaml" config.yaml
-cp -r "$ENGINE/profiles.example" profiles
-cp "$ENGINE/.env.example" .env
+"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/init.py" ~/jobsearch
+cd ~/jobsearch
 ```
+
+Add `--language zh-TW` to also copy the Traditional Chinese `prompts.yaml` and `texts.yaml` (see [Prompt and display language](#prompt-and-display-language)).
 
 **3. Fill in your details.**
 
@@ -58,7 +58,15 @@ cp "$ENGINE/.env.example" .env
 - `profiles/<track>.md`: one file per job direction, describing what you want and what to emphasize for it.
 - `config.yaml`: your locations, search queries, filter rules and `tracks:` (one entry per direction: a letter, a name, a tag, the profile file in `profiles/` and the file name of your resume). The example has two tracks; use as many as you like, at least one. Every setting is commented in the file.
 
-**4. Try a small run first.** It fetches only 5 jobs per query and uses a separate test database, so your real `jobs.db` stays clean:
+**4. Check the setup, for free.** The dry run reads your config and profiles and prints what a run would do, without any network call, model call or file write. It points out a missing key, a profile that is still the template, a profile file that does not exist, a typo in a setting, and which earlier days a run would first finish:
+
+```bash
+"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py" --dry-run
+```
+
+Add `--json` for a machine-readable report. It exits with 1 when something must be fixed first.
+
+**5. Try a small run.** It fetches only 5 jobs per query and uses a separate test database, so your real `jobs.db` stays clean:
 
 ```bash
 "$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py" --no-notify --max-jobs 5 --db test.db
@@ -66,7 +74,7 @@ cp "$ENGINE/.env.example" .env
 
 Then open `data/7_shortlist/<today>/_summary.md` and a job note next to it. Check that the filters and scores look sensible before running at full size. (With only 5 jobs per query the shortlist may be empty; that is normal.)
 
-**5. Run it for real.**
+**6. Run it for real.**
 
 ```bash
 "$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py"

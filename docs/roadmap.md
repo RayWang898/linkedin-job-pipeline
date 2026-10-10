@@ -31,8 +31,8 @@ Do these in order. Tasks 1 and 2 matter most: without them the engine cannot run
 |---|---|---|---|
 | 12 | `AGENTS.md` for the user's agent: install, run, where files live | done | Separate from `CLAUDE.md`, which is for developing this repo |
 | 13 | `/setup` skill: interview the user, then write `profiles/` and `config.yaml` | done | `.claude/skills/setup/` (SKILL.md plus three reference files). The output contract was checked with a synthetic persona; it has not been run with a real person yet, which is the point of the P3 friend test |
-| 14 | `init` command that creates a workspace and copies the examples | later | |
-| 15 | `--dry-run` and machine-readable output on the main commands | later | Safer and easier for agents |
+| 14 | `init` command that creates a workspace and copies the examples | done | `scripts/execution-python/init.py [folder] [--language CODE]`; never overwrites; adds a `.gitignore`; `.env` is mode 600 |
+| 15 | `--dry-run` and machine-readable output on the main commands | done | `run_daily.py --dry-run [--json]` (implemented in `check.py`): checks config, profiles and keys, prints the plan and what a rerun would resume or catch up; no network, nothing written; exit 1 on errors. `backfill.py` already had its own `--dry-run`. Other commands' machine-readable output is `score.py --stats-json` |
 | 16 | Fixture data and basic tests so the pipeline can run end to end without API cost | later | Also protects against regressions |
 | 16a | Make a failed day resumable: record each step's completion for the day, and on a rerun skip finished steps and never overwrite the day's filtered file with an empty one | done | `daily_runs.steps_done`; resume on rerun; the next run finishes failed days up to 3 days back; dedup commits only after its file is written; `--force` archives the day's files to `data/_replaced/`; `score.py --run-date`. Tested with injected failures (scratch harness, not yet in the repo; folds into task 16) |
 
