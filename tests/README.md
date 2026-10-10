@@ -32,6 +32,10 @@ UPDATE_GOLDEN=1 venv/bin/python -m pytest tests/test_golden.py
 git diff tests/fixtures/golden        # read it before you commit
 ```
 
+## Adding a test
+
+Write it before the code it checks, from the requirement, and run it to see it fail (see "Working test-first" in `CLAUDE.md`). Name it after the behavior (`test_a_failed_day_is_resumed_without_fetching_again`), build the situation with `ws.update_config(...)`, `ws.use_jobs(...)` and the failure switches above, and assert on what a user would see: files, the database rows, the notes, the messages. Tests that only freeze current output say so in their docstring (`test_golden.py` does).
+
 ## What the tests do not cover
 
 - Whether the real model scores well. The fake model follows fixed rules, so these tests show that the pipeline around the model works, not that the prompts are good. Use `replay_triage.py` for that (it costs money).
