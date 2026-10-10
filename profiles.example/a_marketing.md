@@ -1,6 +1,6 @@
 # Track A: Marketing
 
-<!-- The file name must match the "file" entry for this track in TRACKS (scripts/execution-python/score.py). -->
+<!-- The file name must match the "profile" entry of this track under tracks: in config.yaml. -->
 
 ## Positioning
 One or two sentences: what kind of marketing role you are aiming for and why you fit.

@@ -50,7 +50,7 @@ Re-running `score.py` on a day whose jobs are already scored costs nothing: scor
 
 ## Setting up a new user
 
-Do this in order and stop to confirm at each numbered step.
+In Claude Code, run `/setup`: it follows the steps below and its question bank is in `.claude/skills/setup/`. With another agent, follow these steps yourself and use `.claude/skills/setup/references/` (interview questions, what a good profile looks like, how to write queries and filters) as your guide. Do this in order and stop to confirm at each numbered step.
 
 1. **Environment.** Python 3.11+, the engine's dependencies installed, a workspace folder created, `config.example.yaml` copied to `config.yaml`, `profiles.example/` copied to `profiles/`, `.env.example` copied to `.env`. Ask the user to paste their `APIFY_TOKEN` and `ANTHROPIC_API_KEY` into `.env` themselves (see rule 3).
 2. **Interview, then write `profiles/`.** The scoring is only as good as these files. Ask about: work authorization and location; education; years and kinds of experience; two to six accomplishments with a number each; tools and skills they can defend in an interview; what kinds of jobs they want (these become the tracks); what they would never do; which job types are a good fit but need a custom resume. Put the shared facts in `shared.md` (keep its section "Job types worth a custom resume (needs_custom)") and one file per track. Use `profiles.example/` as the template. Show each file to the user before saving it.

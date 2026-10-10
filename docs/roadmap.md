@@ -30,7 +30,7 @@ Do these in order. Tasks 1 and 2 matter most: without them the engine cannot run
 | # | Task | Status | Notes |
 |---|---|---|---|
 | 12 | `AGENTS.md` for the user's agent: install, run, where files live | done | Separate from `CLAUDE.md`, which is for developing this repo |
-| 13 | `/setup` skill: interview the user, then write `profiles/` and `config.yaml` | later | The hardest part for new users is writing profiles; this is the main selling point |
+| 13 | `/setup` skill: interview the user, then write `profiles/` and `config.yaml` | done | `.claude/skills/setup/` (SKILL.md plus three reference files). The output contract was checked with a synthetic persona; it has not been run with a real person yet, which is the point of the P3 friend test |
 | 14 | `init` command that creates a workspace and copies the examples | later | |
 | 15 | `--dry-run` and machine-readable output on the main commands | later | Safer and easier for agents |
 | 16 | Fixture data and basic tests so the pipeline can run end to end without API cost | later | Also protects against regressions |

@@ -2,9 +2,11 @@
 
 <!-- Copy this folder to profiles/ and replace every example below with your own details. -->
 <!-- Facts that apply to all your tracks go here. Each track file only adds what is specific to that track. -->
+<!-- This file is sent to the scoring model with every job. Keep it short, do not put contact details (phone, email, address) in it, and mark anything you are unsure of with (unconfirmed) until you have checked it. -->
 
 ## Background
-- Name, current location, work authorization (for example "authorized to work in the US").
+- Level: one sentence naming the job levels that fit and the ones that do not. Example: "Recent graduate with a one-year internship. Fits entry-level Analyst, Coordinator and Associate roles. Not Senior, Lead or Manager, or roles that ask for three or more years."
+- Current location and work authorization (for example "authorized to work in the US").
 - Education, in one line each.
 - Years of experience and the industries you have worked in.
 
