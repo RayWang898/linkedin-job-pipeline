@@ -40,11 +40,11 @@ Do these in order. Stop for the user's go-ahead at the end of steps 2 to 7.
 
 ### 2. Background (`profiles/shared.md`)
 
-Read `references/interview.md` part A and `references/profile-quality.md`. Ask for the resume first (A0). Draft level, education, languages, experience (with numbers) and skills from it, then ask only for the gaps and for what a resume never holds: location and work authorization, the job types that fit but need a custom resume, and the hard no's. Without a resume, fall back to the questions in part A one group at a time. Draft `shared.md` from the example's headings, show it, revise, and get a yes.
+Read `references/interview.md` part A and `references/profile-quality.md`. Ask for the resume first (A0). Draft level, education, languages, experience (with numbers) and skills from it, then ask only for the gaps and for what a resume never holds: location and work authorization and the hard no's. Leave "Job types worth a custom resume" as `none` unless the user names such a job type; never suggest one. Without a resume, fall back to the questions in part A one group at a time. Draft `shared.md` from the example's headings, show it, revise, and get a yes.
 
 ### 3. Tracks (`profiles/<track>.md` and `tracks:`)
 
-Read `references/interview.md` part B. Help the user name two to four directions they want (one is fine), and for each one write a track profile: positioning, target titles, strengths, honest gaps, red lines. Agree on a track letter, a name, a tag, the profile file name and the resume file name, and write the `tracks:` list in `config.yaml`. Explain that more tracks make every scoring call longer and a bit dearer.
+Read `references/interview.md` part B. Help the user name two to four directions they want (one is fine), and for each one write a track profile: positioning, target titles, strengths, honest gaps, red lines. Agree on a track letter, a name, a tag, the profile file name and the resume file name, and write the `tracks:` list in `config.yaml`. `init.py` copied in two example tracks (A Marketing, B Project management, with `a_marketing.md`, `b_pm.md` and the resume names `Resume_Marketing.docx`, `Resume_PM.docx`): the user's list replaces them completely. Remove every example entry the user does not have, rename or rewrite the ones they keep, and with the user's yes delete the unused example profile files from `profiles/` (for example `b_pm.md`). Before step 7, read `config.yaml` again and check that no example track, profile or resume name is left. Explain that more tracks make every scoring call longer and a bit dearer.
 
 ### 4. Search and filters (`config.yaml`)
 
@@ -66,7 +66,7 @@ From the workspace run:
 "$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py" --dry-run
 ```
 
-It checks `config.yaml` (tracks, visa, `prompts.yaml`, `texts.yaml`), every profile file the tracks name, and that both keys are set, and it prints how many searches and jobs a real run would make. It makes no network call and writes nothing. Fix every `ERROR` line and run it again until it ends with `Ready.` Read the `WARN` lines with the user: a profile "identical to the template" or with `(unconfirmed)` markers left means step 2 or 3 is not finished.
+It checks `config.yaml` (tracks, visa, `prompts.yaml`, `texts.yaml`), every profile file the tracks name, and that both keys are set, and it prints how many searches and jobs a real run would make. It makes no network call and writes nothing. Fix every `ERROR` line and run it again until it ends with `Ready.` Read the `WARN` lines with the user (a `WARN` for a profile "identical to the template" usually means an example track is still in `tracks:`): a profile "identical to the template" or with `(unconfirmed)` markers left means step 2 or 3 is not finished.
 
 ### 8. Test run, then iterate
 

@@ -1,6 +1,6 @@
 # Interview guide
 
-Questions for each part, why they matter, and where the answer goes. Ask in the user's language, a few at a time. The interview is resume-led: ask A0 first, draft from the resume, and ask only about what is missing or unclear. Questions a resume cannot answer (A1, A7, A8, and the options in part D) are asked either way.
+Questions for each part, why they matter, and where the answer goes. Ask in the user's language, a few at a time. The interview is resume-led: ask A0 first, draft from the resume, and ask only about what is missing or unclear. Questions a resume cannot answer (A1, A8, and the options in part D) are asked either way.
 
 ## Part A: background (becomes `profiles/shared.md`)
 
@@ -36,7 +36,9 @@ Write one bullet per fact, with the number. If the user cannot give a number, wr
 - Tools, software, languages and methods you could talk about for ten minutes. Group them (for example tools, analysis, languages). List only what they can back up.
 
 **A7. Job types worth a custom resume** (that section)
-- Are there kinds of jobs you fit well but that none of your base resumes covers? Each job in one of these types is flagged `needs custom resume` when no track scores it high. Zero to four types is normal; none is fine.
+Skip this by default and write `none` under the heading. Ask it only if the user says they would apply to a kind of job that their resume does not cover (for example a career change, or a second field they could write a separate resume for). In that case ask: "Which kinds of jobs would you apply to if you wrote a custom resume for them?"
+- This is not the same as a track. A direction the user wants and has a resume for is a track (part B). A type listed here is for jobs worth applying to only with a rewritten resume: when no track scores such a job high, it is flagged `needs custom resume` and listed separately, instead of being dropped.
+- Never propose types yourself, and do not turn guesses from the resume into types. Write only what the user names. Zero to four is normal; none is the usual answer for someone with one resume and one direction.
 
 **A8. Hard rules** (Hard rules)
 - What would make a job a bad fit no matter what the title says? (frequent travel, on-call, commission-only, a specific industry, a skill you do not want to use). Write each as an action the model can take: "lower the score for ...".
