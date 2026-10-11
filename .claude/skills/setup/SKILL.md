@@ -19,7 +19,7 @@ Read the files in `references/` when a step points to them; do not load them all
 
 - Talk in the user's language. Ask at most three questions at a time, and say why a question matters in a few words. Offer an example or a default so they can answer in a line.
 - Do not interrogate. After a first answer, draft the text yourself, show it, and ask what is wrong or missing. Drafts beat questionnaires.
-- The fastest path is a resume: ask for the file path or pasted text, read it only after the user agrees, and draft from it. Whatever you infer rather than read, mark `(unconfirmed)` in the draft and clear every marker with the user before saving.
+- Start from the resume, not from questions: the first thing you ask in step 2 is for the resume (file path or pasted text; a portfolio or profile page is fine too). Read it only after the user agrees, draft from it, and then ask only about what it does not answer. Whatever you infer rather than read, mark `(unconfirmed)` in the draft and clear every marker with the user before saving.
 - Write down only what the user told you or showed you. If you do not know a number, ask for it or leave it out.
 - The user may say "skip" or "later" to anything. Leave a sensible default and note it at the end.
 
@@ -40,7 +40,7 @@ Do these in order. Stop for the user's go-ahead at the end of steps 2 to 7.
 
 ### 2. Background (`profiles/shared.md`)
 
-Read `references/interview.md` part A and `references/profile-quality.md`. Collect level, education, languages, work authorization, the experience that goes on any resume (with numbers), skills, the job types that fit but need a custom resume, and the hard no's. Draft `shared.md` from the example's headings, show it, revise, and get a yes.
+Read `references/interview.md` part A and `references/profile-quality.md`. Ask for the resume first (A0). Draft level, education, languages, experience (with numbers) and skills from it, then ask only for the gaps and for what a resume never holds: location and work authorization, the job types that fit but need a custom resume, and the hard no's. Without a resume, fall back to the questions in part A one group at a time. Draft `shared.md` from the example's headings, show it, revise, and get a yes.
 
 ### 3. Tracks (`profiles/<track>.md` and `tracks:`)
 

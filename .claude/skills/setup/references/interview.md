@@ -1,10 +1,15 @@
 # Interview guide
 
-Questions for each part, why they matter, and where the answer goes. Ask in the user's language, a few at a time. If the user gives you a resume, draft from it first and ask only about what is missing or unclear.
+Questions for each part, why they matter, and where the answer goes. Ask in the user's language, a few at a time. The interview is resume-led: ask A0 first, draft from the resume, and ask only about what is missing or unclear. Questions a resume cannot answer (A1, A7, A8, and the options in part D) are asked either way.
 
 ## Part A: background (becomes `profiles/shared.md`)
 
 The example file has these headings: Background, Shared experience, Skills, Job types worth a custom resume, Hard rules. Keep them (the scoring prompt refers to "Job types worth a custom resume").
+
+**A0. Resume first** (ask this before anything else in part A)
+- "Do you have a resume, portfolio or profile page I can read? Paste it here, or give me a file path you agree to let me read." Read it only after they agree.
+- From it, draft A2 (level, from years and last title), A3, A4 and A6 yourself. Show the draft and ask what is wrong, what is missing, and for the numbers the resume leaves out ("You led the referral program: how many users did it bring in?"). Do not re-ask what the resume already says.
+- If they have no resume, say so and ask A2 to A6 as written below, three questions at a time.
 
 **A1. Where and under what status** (Background; also `location_whitelist`, `visa`)
 - Which city or cities would you work in, and is remote acceptable?
@@ -18,7 +23,7 @@ The example file has these headings: Background, Shared experience, Skills, Job 
 - Degrees with field and year; spoken languages and working language.
 
 **A4. Experience that goes on any resume** (Shared experience)
-For each of the three to six most relevant roles or projects ask:
+With a resume, take the three to six most relevant roles from it and ask only for missing numbers and results. Without one, for each of the three to six most relevant roles or projects ask:
 - Employer or context, your title, place, dates.
 - What did you do that you would put on a resume? Then ask for a number for each: how many people, how much budget, how many users, events, articles, sales, hours saved.
 - Was there a result you are proud of?
