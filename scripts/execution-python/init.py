@@ -88,7 +88,9 @@ def main() -> int:
     for name in kept:
         print(f"  kept     {name} (already there, not touched)")
     if ENGINE in target.parents or target == ENGINE:
-        print("Note: this folder is inside the engine repository. That works; the engine's .gitignore already keeps your files out of git.")
+        print("Note: this folder is inside the engine repository. Keys, config, profiles, resumes, data and databases are ignored by git, but your own "
+              "files (prompts.yaml, texts.yaml, an applied-jobs list, notes) are not. Keep the workspace outside the repository, or add files "
+              "by name when you commit and never use git add -A.")
     python = sys.executable
     dry = f'"{python}" "{ENGINE}/scripts/execution-python/run_daily.py" --workspace "{target}" --dry-run'
     print(f"""

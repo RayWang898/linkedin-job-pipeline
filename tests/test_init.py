@@ -2,8 +2,10 @@
 
 import os
 import stat
+import tempfile
+from pathlib import Path
 
-from conftest import run_init
+from conftest import ENGINE, run_init
 
 
 def test_creates_the_expected_files(tmp_path):
@@ -82,3 +84,17 @@ def test_target_that_is_a_file_is_refused(tmp_path):
     target.write_text("x")
     proc = run_init(target)
     assert proc.returncode != 0 and "not a folder" in proc.stderr
+
+
+def test_a_workspace_inside_the_engine_repository_gets_an_honest_warning():
+    """Requirement: inside the repository some user files (prompts.yaml, an applied-jobs list) are not ignored by git, so the note
+    must say to keep the workspace outside, or to never use git add -A, and must not promise that all files are kept out of git."""
+    with tempfile.TemporaryDirectory(dir=ENGINE) as inside:
+        out = run_init(Path(inside) / "ws").stdout
+    note = next(line for line in out.splitlines() if line.startswith("Note:"))
+    assert "outside" in note and "git add -A" in note
+    assert "keeps your files out of git" not in out
+
+
+def test_a_workspace_outside_the_repository_gets_no_such_note(tmp_path):
+    assert "inside the engine repository" not in run_init(tmp_path / "ws").stdout
