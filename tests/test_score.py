@@ -27,12 +27,13 @@ def test_needs_custom_means_a_custom_type_job_that_no_track_covers(a, custom, ex
     assert score.finalize_triage(raw(a=a, custom=custom))["needs_custom"] is expected
 
 
-def test_visa_blocked_caps_the_scores_when_the_feature_is_on(monkeypatch):
+def test_visa_flag_never_changes_the_scores(monkeypatch):
+    """Requirement (ADR 0005): the model's visa judgment is a warning for the user, never a silent demotion; only the filter's phrases exclude."""
     monkeypatch.setattr(score, "VISA_ENABLED", True)
-    result = score.finalize_triage(raw(a=5, b=4, custom=True, visa=True))
-    assert result["scores"] == {"A": 1, "B": 1}
-    assert result["scores_raw"] == {"A": 5, "B": 4}  # kept so a wrong call can be undone
-    assert result["visa_blocked"] is True and result["needs_custom"] is False
+    result = score.finalize_triage(raw(a=5, b=4, visa=True))
+    assert result["scores"] == {"A": 5, "B": 4} and result["best_score"] == 5
+    assert result["visa_blocked"] is True and "scores_raw" not in result
+    assert score.finalize_triage(raw(a=3, custom=True, visa=True))["needs_custom"] is True
 
 
 def test_visa_blocked_is_ignored_when_the_feature_is_off():
@@ -129,6 +130,25 @@ def test_visa_excerpts_find_passages_far_beyond_the_truncated_text():
 def test_close_passages_are_merged_into_one():
     text = "Intro " + "a" * 100 + " no sponsorship offered. " + "b" * 50 + " authorized to work only. " + "c" * 100
     assert len(score.visa_excerpts(text)) == 1
+
+
+# ---- a visa block needs visa text in the posting ----
+def test_a_visa_block_without_any_visa_text_in_the_posting_is_dropped():
+    """Requirement: the rubric blocks only a posting that explicitly refuses sponsorship. A description with no visa-related
+    text cannot refuse anything, so the model's visa_blocked is not trusted (seen in a real run: score 4 capped to 1)."""
+    job = {"title": "T", "description": "A role in luxury beauty PR. You will plan influencer campaigns. " * 20}
+    fixed = score.drop_unsupported_visa_block(raw(a=4, visa=True), job)
+    assert fixed["visa_blocked"] is False and fixed["scores"] == {"A": 4, "B": 1}
+
+
+def test_a_visa_block_is_kept_when_the_posting_has_visa_text():
+    job = {"title": "T", "description": "Great team. We cannot sponsor visas now or later. " + "x" * 3000}
+    assert score.drop_unsupported_visa_block(raw(a=4, visa=True), job)["visa_blocked"] is True
+
+
+def test_a_clear_visa_result_is_never_changed():
+    job = {"title": "T", "description": "Nothing about work permits here."}
+    assert score.drop_unsupported_visa_block(raw(a=4, visa=False), job) == raw(a=4, visa=False)
 
 
 # ---- small helpers ----

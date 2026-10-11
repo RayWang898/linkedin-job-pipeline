@@ -38,7 +38,7 @@ Write reason as one sentence of at most 25 words, in {language}.""",
 Visa: the candidate is on OPT (currently authorized to work, but will need employer sponsorship later). Read <job> and its <visa_excerpts> (visa-related passages taken from the full description) and set visa_blocked:
 - true: the posting explicitly says it will not sponsor visas (now or in the future), explicitly does not support OPT/STEM OPT/CPT/H-1B candidates, or requires US citizenship or permanent residency.
 - false: anything else, including postings that only say "must be authorized to work in the US" without mentioning sponsorship or OPT restrictions, postings willing to sponsor, and postings that say nothing.
-When visa_blocked is true, still score each track normally from the posting; the program will cap the scores at 1. Mention the visa in reason.""",
+When visa_blocked is true, still score each track normally from the posting; the program only shows the user a warning and does not change the scores. Mention the visa in reason.""",
     "detail_instructions": """\
 You are a job-search advisor. Using the <profiles> (the candidate's background and their best-fitting track), the full job posting and the triage result,
 give application advice for this job. You must submit it by calling submit_detail; do not reply with plain text. Write everything in {language} and state conclusions directly:

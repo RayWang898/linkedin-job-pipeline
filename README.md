@@ -118,7 +118,7 @@ Note properties and tags use the track letter and tag (`score_A`, `track/A-Marke
 
 ## Optional features
 
-- **Visa sponsorship (`visa:`).** Off by default. If you need an employer to sponsor a work visa, set `visa.enabled: true`: jobs whose description clearly refuses sponsorship are dropped in the filter, and the scoring model also flags them (their scores are capped at 1 and the daily summary lists them so you can spot wrong calls). The wording is written for US visas such as OPT.
+- **Visa sponsorship (`visa:`).** Off by default. If you need an employer to sponsor a work visa, set `visa.enabled: true`: jobs whose description clearly refuses sponsorship are dropped in the filter, and the scoring model also warns about them (a warning line in the note and a list in the daily summary; their scores are not changed, so a wrong call never hides a job). The wording is written for US visas such as OPT.
 - **Already-applied list (`tracker_path`).** Point it at a text file of jobs you already applied to or decided against, and matching jobs are skipped. The format is described in `config.example.yaml`.
 - **Backfill.** `scripts/execution-python/backfill.py` fetches the past N days once and writes its own shortlist folder.
 - **Add a job by hand.** `scripts/execution-python/add_to_shortlist.py` scores and files a single posting, including ones that are not on LinkedIn.

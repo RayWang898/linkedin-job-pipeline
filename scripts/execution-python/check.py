@@ -169,7 +169,7 @@ def collect(db: str, max_jobs: int | None) -> Report:
                                                       "shortlist_size", "detail_count", "detail_custom", "output_language")}
     visa = cfg.get("visa") or {}
     if visa.get("enabled") and not visa.get("exclude_patterns"):
-        r.add("warn", "visa", "enabled but exclude_patterns is empty: only the scoring model will flag visa-blocked jobs")
+        r.add("warn", "visa", "enabled but exclude_patterns is empty: only the scoring model will warn about jobs that refuse sponsorship (it does not exclude them)")
     tracker = cfg.get("tracker_path")
     if tracker and not Path(tracker).exists():
         r.add("warn", "tracker_path", f"{tracker} not found: the already-applied check will be skipped")

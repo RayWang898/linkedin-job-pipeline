@@ -19,6 +19,7 @@ DEFAULTS = {
     "note_link": "- Link: [LinkedIn posting]({url})",
     "note_no_link": "- Link: none",
     "note_reason": "- Triage reason: {reason}",
+    "note_visa_warning": "- Visa warning: triage thinks this posting may refuse sponsorship. The score is unchanged; read the description before applying.",
     "note_same_company": "- Earlier at this company: {title} ({label})",
     "note_detail_heading": "## Detailed review",
     "note_detail_resume": "- Suggested resume: {track} {name} ({resume})",
@@ -32,7 +33,7 @@ DEFAULTS = {
     # --- daily summary file (_summary.md) ---
     "summary_title": "# Daily shortlist summary {date}",
     "summary_shortlist": "- Shortlist: main {main}, needs custom resume {custom}",
-    "summary_visa_blocked": "- Triage flagged as visa-blocked (scores capped at 1): {n}",
+    "summary_visa_blocked": "- Triage flagged jobs that may refuse sponsorship (scores unchanged): {n}",
     "summary_visa_item": "  - {company} | {title}: {reason}",
     "summary_tracks_heading": "## Jobs per track",
     "summary_queries_heading": "## Jobs per search query",

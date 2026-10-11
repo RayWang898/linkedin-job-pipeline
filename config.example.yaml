@@ -42,7 +42,7 @@ visa:
   # Step 4: drop a job if its description contains one of these (case-insensitive substring).
   # Keep only explicit "no sponsorship" phrases to avoid false drops.
   # Step 5: the scoring model also reads the visa-related passages of each description and
-  # drops the scores of a job that clearly refuses sponsorship.
+  # warns about a job that clearly refuses sponsorship (the score is not changed).
   exclude_patterns:
     - "will not sponsor"
     - "unable to sponsor"

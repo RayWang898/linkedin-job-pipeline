@@ -46,10 +46,10 @@ def test_with_the_visa_feature_on_the_prompts_schema_and_scores_change(ws):
     assert score.P["visa_rubric"] in call["system"]
     assert [c for c in triage_calls(ws) if "visa_excerpts" in c["user"]]  # jobs that mention sponsorship or OPT carry their passages
     scored = {j["jobId"]: j["triage"] for j in json.loads(ws.read(f"data/6_scored/{DAY_FILE}"))}
-    assert scored["1010"]["visa_blocked"] is True and scored["1010"]["scores"] == {"A": 1, "B": 1}
-    assert scored["1010"]["scores_raw"]["A"] == 4  # the capped job is shown but its real score is kept
+    assert scored["1010"]["visa_blocked"] is True and scored["1010"]["scores"]["A"] == 4  # flagged, but the score is the model's own
+    assert "scores_raw" not in scored["1010"]
     assert scored["1001"]["visa_blocked"] is False and scored["1001"]["scores"]["A"] == 4
-    assert "visa-blocked" in ws.read(f"data/7_shortlist/{DAY}/_summary.md")
+    assert "refuse sponsorship (scores unchanged)" in ws.read(f"data/7_shortlist/{DAY}/_summary.md")
 
 
 def test_visa_filter_phrases_apply_only_when_enabled(ws):

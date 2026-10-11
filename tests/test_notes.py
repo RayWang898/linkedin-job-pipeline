@@ -140,4 +140,13 @@ def test_visa_blocked_jobs_are_listed_in_the_summary(tmp_path, monkeypatch):
     blocked["triage"] = score.finalize_triage({"scores": {"A": 5, "B": 4}, "custom_family": False, "visa_blocked": True, "reason": "no sponsorship"})
     day = write(tmp_path, [make_job("1"), blocked])
     text = (day / "_summary.md").read_text(encoding="utf-8")
-    assert "visa-blocked (scores capped at 1): 1" in text and "Blocked Co | Marketing Associate: no sponsorship" in text
+    assert "refuse sponsorship (scores unchanged): 1" in text and "Blocked Co | Marketing Associate: no sponsorship" in text
+
+
+def test_a_visa_flagged_job_gets_a_warning_line_in_its_note(tmp_path, monkeypatch):
+    monkeypatch.setattr(score, "VISA_ENABLED", True)
+    flagged = make_job("9", company="Flagged Co", best=5)
+    flagged["triage"] = score.finalize_triage({"scores": {"A": 5, "B": 4}, "custom_family": False, "visa_blocked": True, "reason": "no sponsorship"})
+    day = write(tmp_path, [make_job("1"), flagged])
+    assert "- Visa warning:" in note_of(day, "02_Flagged-Co_Marketing-Associate")
+    assert "Visa warning" not in note_of(day, "01_Acme_Marketing-Associate")

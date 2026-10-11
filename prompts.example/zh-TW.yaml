@@ -44,7 +44,7 @@ visa_rubric: |-
   簽證：求職者持 OPT（目前有合法工作授權，但之後需要雇主 sponsor）。請讀 <job> 和其中的 <visa_excerpts>（取自完整描述的簽證相關片段），設定 visa_blocked：
   - true：原文明確表示不提供簽證 sponsor（含「現在或未來」），或明確不支援 OPT／STEM OPT／CPT／H-1B 申請者，或要求美國公民／永久居民身分。
   - false：其他情況，包括只寫「須具備美國工作授權（authorized to work）」而沒有提到 sponsor 或 OPT 的限制、願意 sponsor、或完全沒提。
-  visa_blocked 為 true 時，各條路線的分數仍照常依職缺內容評，程式會把分數壓到 1；reason 要提到簽證。
+  visa_blocked 為 true 時，各條路線的分數仍照常依職缺內容評，程式只會提醒使用者，不會更動分數；reason 要提到簽證。
 reason_description: 一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分。
 reason_description_visa: 一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分；visa_blocked 為 true 時要提到簽證。
 visa_blocked_description: 職缺原文是否明確表示不提供簽證 sponsor、不支援 OPT／STEM OPT，或要求公民／永久居民身分。只要求「須有美國工作授權」不算。

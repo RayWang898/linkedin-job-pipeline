@@ -347,13 +347,20 @@ def triage_user_prompt(job: dict, chars: int, visa_skip_locations: list[str] | N
     return f"<job>\n{json.dumps(fields, ensure_ascii=False, indent=2)}\n</job>{visa_block}\n\n{P['triage_request']}"
 
 
+def drop_unsupported_visa_block(raw: dict, job: dict) -> dict:
+    """A visa block needs evidence: a posting with no visa-related text at all cannot refuse sponsorship, so the model's visa_blocked is dropped."""
+    if raw.get("visa_blocked") and not visa_excerpts(job.get("description") or ""):
+        return {**raw, "visa_blocked": False}
+    return raw
+
+
 def finalize_triage(raw: dict) -> dict:
     """The program derives the best track and needs_custom (ties go to the earlier track in TRACKS).
 
-    When visa_blocked is true every track's score is capped at 1 (the raw scores are kept in scores_raw for later inspection or recovery) and the job does not count as needs-custom.
+    visa_blocked is only a warning for the user (ADR 0005): it never changes a score. Excluding a job for sponsorship is the filter's job.
     """
     visa_blocked = VISA_ENABLED and bool(raw.get("visa_blocked"))
-    scores = {t: min(raw["scores"][t], 1) for t in TRACKS} if visa_blocked else raw["scores"]
+    scores = raw["scores"]
     best_track = max(TRACKS, key=lambda t: (scores[t], -list(TRACKS).index(t)))
     best_score = scores[best_track]
     result = {
@@ -361,12 +368,10 @@ def finalize_triage(raw: dict) -> dict:
         "best_track": best_track,
         "best_score": best_score,
         "custom_family": raw["custom_family"],
-        "needs_custom": raw["custom_family"] and best_score < 4 and not visa_blocked,
+        "needs_custom": raw["custom_family"] and best_score < 4,
         "visa_blocked": visa_blocked,
         "reason": raw["reason"].strip(),
     }
-    if visa_blocked:
-        result["scores_raw"] = raw["scores"]
     return result
 
 
@@ -381,7 +386,7 @@ def triage_job(conn, client, config, profiles, usage, job: dict) -> dict | None:
                      TRIAGE_TOOL, validate_triage, usage)
     if raw is None:
         return None
-    result = finalize_triage(raw)
+    result = finalize_triage(drop_unsupported_visa_block(raw, job))
     save_cached(conn, "triage_scores", job["jobId"], profiles["triage_hash"], model, result)
     return result
 
@@ -655,6 +660,8 @@ def format_job_note(rank: int | None, job: dict, run_date: str, scraped_date: st
         fill(TX["note_link"], url=job.get("jobUrl")) if job.get("jobUrl") else TX["note_no_link"],
         fill(TX["note_reason"], reason=tr["reason"]),
     ]
+    if tr.get("visa_blocked"):
+        lines.append(TX["note_visa_warning"])
     for e in job.get("tracker_company_match") or []:
         label = TRACKER_LABELS[e["status"]]
         lines.append(fill(TX["note_same_company"], title=e["title"], label=label))
