@@ -10,11 +10,19 @@ def test_creates_the_expected_files(tmp_path):
     target = tmp_path / "ws"
     proc = run_init(target)
     assert proc.returncode == 0, proc.stderr
-    for name in ("config.yaml", ".env", ".gitignore", "profiles/shared.md", "profiles/a_marketing.md", "profiles/b_pm.md"):
+    for name in ("config.yaml", ".env", ".gitignore"):
         assert (target / name).exists(), name
-    assert (target / "resumes").is_dir()
+    assert (target / "profiles").is_dir() and (target / "resumes").is_dir()
     assert "created  config.yaml" in proc.stdout
     assert "--dry-run" in proc.stdout  # points at the next step
+
+
+def test_example_profiles_are_not_copied_into_the_workspace(tmp_path):
+    """The workspace holds only the user's own profiles: example text left behind (b_pm.md) looks like finished work."""
+    target = tmp_path / "ws"
+    assert run_init(target).returncode == 0
+    assert (target / "profiles").is_dir()
+    assert list((target / "profiles").iterdir()) == []
 
 
 def test_env_file_is_private_and_empty_of_secrets(tmp_path):

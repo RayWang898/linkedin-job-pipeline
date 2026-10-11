@@ -1,6 +1,6 @@
 # shared.md
 
-<!-- Copy this folder to profiles/ and replace every example below with your own details. -->
+<!-- Use this folder as a template: write your own files into your workspace's profiles/ and replace every example below with your own details. -->
 <!-- Facts that apply to all your tracks go here. Each track file only adds what is specific to that track. -->
 <!-- This file is sent to the scoring model with every job. Keep it short, do not put contact details (phone, email, address) in it, and mark anything you are unsure of with (unconfirmed) until you have checked it. -->
 

@@ -58,6 +58,11 @@ def deep_merge(base: dict, patch: dict) -> dict:
     return out
 
 
+def seed_profiles(target: Path) -> None:
+    """init.py leaves profiles/ empty; most tests need the template profiles the example tracks point at."""
+    shutil.copytree(ENGINE / "profiles.example", target / "profiles", dirs_exist_ok=True)
+
+
 class Workspace:
     """A throw-away workspace made by init.py (so init.py is exercised by every test that uses it)."""
 
@@ -152,6 +157,7 @@ def ws(tmp_path) -> Workspace:
     target = tmp_path / "ws"
     proc = run_init(target)
     assert proc.returncode == 0, proc.stdout + proc.stderr
+    seed_profiles(target)
     workspace = Workspace(target)
     # the template profiles are fine for the engine; give keys a harmless default so --dry-run style checks are not noise
     return workspace
@@ -163,6 +169,7 @@ def make_ws(tmp_path):
     def make(name: str = "ws2", language: str | None = None) -> Workspace:
         target = tmp_path / name
         assert run_init(target, *(["--language", language] if language else [])).returncode == 0
+        seed_profiles(target)
         return Workspace(target)
     return make
 

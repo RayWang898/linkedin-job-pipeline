@@ -35,7 +35,7 @@ Do these in order. Stop for the user's go-ahead at the end of steps 2 to 7.
 ### 1. Workspace
 
 - Ask where the user's data should live (suggest `~/jobsearch`, outside this repository). If the folder already has a `config.yaml` or `profiles/`, ask whether to update them or start over. Never overwrite a file without asking.
-- Create it with `"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/init.py" <folder>`. It copies in `config.yaml`, `profiles/` and `.env` from the examples, adds a `.gitignore`, and never overwrites a file that is already there.
+- Create it with `"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/init.py" <folder>`. It copies in `config.yaml` and `.env` from the examples and creates an empty `profiles/` (the example profiles stay in the engine; read `profiles.example/` as the template and write the user's own files), adds a `.gitignore`, and never overwrites a file that is already there.
 - Ask the user to paste their `APIFY_TOKEN` and `ANTHROPIC_API_KEY` into `.env` themselves. Check afterwards that both are non-empty without printing them (for example `grep -c '^APIFY_TOKEN=.' .env`).
 
 ### 2. Background (`profiles/shared.md`)
@@ -44,7 +44,7 @@ Read `references/interview.md` part A and `references/profile-quality.md`. Ask f
 
 ### 3. Tracks (`profiles/<track>.md` and `tracks:`)
 
-Read `references/interview.md` part B. Help the user name two to four directions they want (one is fine), and for each one write a track profile: positioning, target titles, strengths, honest gaps, red lines. Agree on a track letter, a name, a tag, the profile file name and the resume file name, and write the `tracks:` list in `config.yaml`. `init.py` copied in two example tracks (A Marketing, B Project management, with `a_marketing.md`, `b_pm.md` and the resume names `Resume_Marketing.docx`, `Resume_PM.docx`): the user's list replaces them completely. Remove every example entry the user does not have, rename or rewrite the ones they keep, and with the user's yes delete the unused example profile files from `profiles/` (for example `b_pm.md`). Before step 7, read `config.yaml` again and check that no example track, profile or resume name is left. Explain that more tracks make every scoring call longer and a bit dearer.
+Read `references/interview.md` part B. Help the user name two to four directions they want (one is fine), and for each one write a track profile: positioning, target titles, strengths, honest gaps, red lines. Agree on a track letter, a name, a tag, the profile file name and the resume file name, and write the `tracks:` list in `config.yaml`. `init.py` copied in `config.yaml` with two example tracks (A Marketing, B Project management, with the profile names `a_marketing.md`, `b_pm.md` and the resume names `Resume_Marketing.docx`, `Resume_PM.docx`): the user's list replaces them completely. Remove every example entry the user does not have and rewrite the ones they keep. `profiles/` starts empty, so write only the user's own files there. Before step 7, read `config.yaml` again and check that no example track, profile or resume name is left. Explain that more tracks make every scoring call longer and a bit dearer.
 
 ### 4. Search and filters (`config.yaml`)
 

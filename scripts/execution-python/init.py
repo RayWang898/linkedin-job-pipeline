@@ -5,8 +5,9 @@ Usage:
   venv/bin/python scripts/execution-python/init.py ~/jobsearch
   venv/bin/python scripts/execution-python/init.py ~/jobsearch --language zh-TW   # also copy the Traditional Chinese prompts.yaml and texts.yaml
 
-Copies config.example.yaml, profiles.example/ and .env.example into the folder (never over a file that is already there),
-adds a .gitignore that keeps your keys and data out of git, and prints what to do next. Makes no network calls.
+Copies config.example.yaml and .env.example into the folder and creates empty profiles/ and resumes/ (never over a file that is already there).
+The example profiles stay in the engine as templates: example text left in a workspace looks like finished work, so the user's own profiles are written from them, not copied.
+Also adds a .gitignore that keeps your keys and data out of git, and prints what to do next. Makes no network calls.
 """
 
 import argparse
@@ -16,7 +17,7 @@ import sys
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[2]
-COPIES = (("config.example.yaml", "config.yaml"), (".env.example", ".env"), ("profiles.example", "profiles"))
+COPIES = (("config.example.yaml", "config.yaml"), (".env.example", ".env"))
 GITIGNORE = """\
 # Created by init.py: keep keys and personal data out of git
 .env
@@ -70,7 +71,8 @@ def main() -> int:
         (created if copy_in(ENGINE / src_name, target / dst_name) else kept).append(dst_name)
     for src, dst_name in extra:
         (created if copy_in(src, target / dst_name) else kept).append(dst_name)
-    (target / "resumes").mkdir(exist_ok=True)
+    for folder in ("profiles", "resumes"):
+        (target / folder).mkdir(exist_ok=True)
     gitignore = target / ".gitignore"
     if gitignore.exists():
         kept.append(".gitignore")
@@ -92,7 +94,8 @@ def main() -> int:
     print(f"""
 Next:
   1. Put your keys in {target / '.env'} (APIFY_TOKEN and ANTHROPIC_API_KEY).
-  2. Write your profiles in {target / 'profiles'} and your tracks, queries and filters in {target / 'config.yaml'}.
+  2. Write your profiles in {target / 'profiles'} (use {ENGINE / 'profiles.example'} as the template) and your tracks, queries and filters in {target / 'config.yaml'}.
+     config.yaml lists two example tracks until you replace them; --dry-run reports their missing profile files.
      In Claude Code, run /setup from the engine folder and it will interview you and write them for you.
   3. Check everything without spending anything:
        {dry}""")

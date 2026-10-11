@@ -41,7 +41,7 @@ python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 ```
 
-**2. Create your workspace.** The workspace is a folder of your own that holds your config, profiles, data and keys, kept apart from the engine. `init.py` creates it from the examples (it never overwrites a file that is already there, and adds a `.gitignore` that keeps your keys and data out of git):
+**2. Create your workspace.** The workspace is a folder of your own that holds your config, profiles, data and keys, kept apart from the engine. `init.py` creates it from the examples: it copies `config.yaml` and `.env` and leaves `profiles/` empty, because you write your own profiles from the templates in `profiles.example/` (it never overwrites a file that is already there, and adds a `.gitignore` that keeps your keys and data out of git):
 
 ```bash
 ENGINE="$PWD"                      # the folder you just cloned
