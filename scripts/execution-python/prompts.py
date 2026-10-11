@@ -35,9 +35,9 @@ Also decide custom_family: whether the job belongs to any type listed under "Job
 Write reason as one sentence of at most 25 words, in {language}.""",
     # Added to the rubric only when visa.enabled is true in config.yaml.
     "visa_rubric": """\
-Visa: the candidate is on OPT (currently authorized to work, but will need employer sponsorship later). Read <job> and its <visa_excerpts> (visa-related passages taken from the full description) and set visa_blocked:
-- true: the posting explicitly says it will not sponsor visas (now or in the future), explicitly does not support OPT/STEM OPT/CPT/H-1B candidates, or requires US citizenship or permanent residency.
-- false: anything else, including postings that only say "must be authorized to work in the US" without mentioning sponsorship or OPT restrictions, postings willing to sponsor, and postings that say nothing.
+Visa: the candidate needs an employer to sponsor a work visa or permit (their exact status is in the background profile). Read <job> and its <visa_excerpts> (visa-related passages taken from the full description) and set visa_blocked:
+- true: the posting explicitly says it will not sponsor visas (now or in the future), explicitly does not support the kind of visa or work permit the candidate holds or needs (for example OPT/STEM OPT/CPT or H-1B), or requires US citizenship or permanent residency.
+- false: anything else, including postings that only say "must be authorized to work in the US" without mentioning sponsorship or visa restrictions, postings willing to sponsor, and postings that say nothing.
 When visa_blocked is true, still score each track normally from the posting; the program only shows the user a warning and does not change the scores. Mention the visa in reason.""",
     "detail_instructions": """\
 You are a job-search advisor. Using the <profiles> (the candidate's background and their best-fitting track), the full job posting and the triage result,
@@ -55,7 +55,7 @@ Use only what the posting says. Do not comment on whether the candidate is a fit
     "custom_family_description": "Whether the job belongs to any type listed under \"Job types worth a custom resume\" in shared.md.",
     "reason_description": "One-sentence reason (at most 25 words, in {language}) for why the best track got its score.",
     "reason_description_visa": "One-sentence reason (at most 25 words, in {language}) for why the best track got its score; mention the visa when visa_blocked is true.",
-    "visa_blocked_description": "Whether the posting explicitly says it offers no visa sponsorship, does not support OPT/STEM OPT, or requires citizenship or permanent residency. Merely requiring US work authorization does not count.",
+    "visa_blocked_description": "Whether the posting explicitly says it offers no visa sponsorship, does not support the candidate's kind of visa or work permit, or requires citizenship or permanent residency. Merely requiring US work authorization does not count.",
     "detail_tool_description": "Submit application advice (detailed review) for this job.",
     "resume_description": "Which track's resume to use. Reply with the track id only, no explanation.",
     "emphasize_description": "Experience to emphasize and wording that echoes the posting. At most 3 items, each at most 25 words.",

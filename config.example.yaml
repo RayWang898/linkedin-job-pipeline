@@ -32,9 +32,10 @@ exclude_title_patterns:
   - "Senior"
   - "Sr"
 
-# Visa handling, for job seekers who need an employer to sponsor a work visa (the wording is written for US
-# visas such as OPT). One switch controls everything: when enabled is false (the default) there is no visa
-# filter, the scoring model is not asked about visas, and no visa text is added to the prompts.
+# Visa handling, for job seekers who need an employer to sponsor a work visa (the default prompt wording
+# is generic; your exact status goes in profiles/shared.md). One switch controls everything: when enabled is
+# false (the default) there is no visa filter, the scoring model is not asked about visas, and no visa text is
+# added to the prompts.
 visa:
   enabled: false
   # Locations where the visa rules do not apply (substring match on the job's location).
