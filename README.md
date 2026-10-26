@@ -144,7 +144,7 @@ The notes, `_summary.md` and the phone notification are written from `scripts/ex
 
 ## Roadmap
 
-Planned next: an `AGENTS.md` and a `/setup` skill so your coding agent can interview you and write your profiles and config; an `init` command that creates a workspace; `--dry-run`; and fixture-based tests that run the whole pipeline without API cost. See `docs/roadmap.md`.
+Next: testing with outside users and fixing what they run into, then a `CONTRIBUTING.md`. See `docs/roadmap.md`.
 
 ## License
 
