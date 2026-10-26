@@ -88,6 +88,9 @@ def answer_for(tool: dict, user: str) -> dict:
     answer = {"scores": scores, "custom_family": custom, "reason": f"Fake reason: {title}"}
     if "visa_blocked" in props:
         answer["visa_blocked"] = "not able to support opt" in user.lower()
+    for flag in ("level_too_high", "not_interested", "suspicious", "interest_match"):  # triage flags: a marker in the description sets one
+        if flag in props:
+            answer[flag] = f"FLAG:{flag}" in (job.get("description") or "")
     return answer
 
 
