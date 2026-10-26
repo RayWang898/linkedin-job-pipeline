@@ -136,6 +136,17 @@ scoring:
   detail_count: 10                 # how many of the top jobs get the detailed pass
   detail_custom: true              # also run the detailed pass on "needs custom resume" jobs
 
+# Triage flags, for judgment calls the hard filters cannot make. When enabled, the triage model also reports
+# level_too_high, not_interested, suspicious and interest_match for each job. A job with any of the first three
+# gets every track score capped at 2, so it stays off the shortlist (keep shortlist_min_score above 2); it is
+# listed with the model's reason in the daily summary, so a wrong call is easy to spot. interest_match lifts
+# the level_too_high cap: a job you are interested in is kept even when it asks for more years.
+# What counts as each flag is prompt text: the generic default is flags_rubric in prompts.py; put your own
+# rules (for example "5+ years is too high") in prompts.yaml. Fill the "Interested" and "Not interested"
+# lists in profiles/shared.md. Turning this on re-scores cached jobs on the next run.
+triage_flags:
+  enabled: false
+
 # ---------------------------------------------------------------------------
 # Daily run (run_daily.py)
 # ---------------------------------------------------------------------------

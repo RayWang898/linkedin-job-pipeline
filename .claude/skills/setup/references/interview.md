@@ -76,6 +76,7 @@ Follow `queries-and-filters.md`. Inputs to collect: locations, the titles from B
 ## Part D: options
 
 - **Visa**: only if A1 said they need sponsorship. Offer `visa.enabled: true`; the default phrases in the example are a good start.
+- **Triage flags**: offer `triage_flags.enabled: true` if B or C turned up dislikes the filters cannot express (a field they avoid, postings that ask for more years deep in the text, vague or agency postings). Write what they avoid under "Not interested" and what they are drawn to under "Interested" in `shared.md`. Leave it off when unsure; it can be turned on after a few days of shortlists.
 - **Already-applied list**: if they keep a list of jobs they applied to or rejected, explain the `tracker_path` format from `config.example.yaml` and offer to convert it.
 - **Language**: the language they want the reasons, advice and summaries in (`scoring.output_language`). The instructions the model sees stay English unless they supply `prompts.yaml` (see the README).
 - **Notifications**: whether they want a phone notification (`NTFY_TOPIC`, optional).

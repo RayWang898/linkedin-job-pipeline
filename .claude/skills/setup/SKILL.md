@@ -52,7 +52,7 @@ Read `references/queries-and-filters.md`. Fill in `apify.locations`, `apify.quer
 
 ### 5. Options
 
-Ask only what applies: whether they need visa sponsorship (`visa.enabled`; leave it off otherwise), an already-applied list (`tracker_path`), the language the model should write reasons and advice in (`scoring.output_language`), a phone notification topic (`NTFY_TOPIC` in `.env`), and the daily caps (`apify.max_jobs_per_search`, `daily.max_total_jobs`). Keep the example's models unless they want to change cost; if they do, tell them to check agreement with `replay_triage.py` first.
+Ask only what applies: whether they need visa sponsorship (`visa.enabled`; leave it off otherwise), whether to flag jobs that are too senior, unwanted or suspicious (`triage_flags.enabled`, off by default; see `references/interview.md` Part D), an already-applied list (`tracker_path`), the language the model should write reasons and advice in (`scoring.output_language`), a phone notification topic (`NTFY_TOPIC` in `.env`), and the daily caps (`apify.max_jobs_per_search`, `daily.max_total_jobs`). Keep the example's models unless they want to change cost; if they do, tell them to check agreement with `replay_triage.py` first.
 
 ### 6. Review and save
 
@@ -66,7 +66,7 @@ From the workspace run:
 "$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/run_daily.py" --dry-run
 ```
 
-It checks `config.yaml` (tracks, visa, `prompts.yaml`, `texts.yaml`), every profile file the tracks name, and that both keys are set, and it prints how many searches and jobs a real run would make. It makes no network call and writes nothing. Fix every `ERROR` line and run it again until it ends with `Ready.` Read the `WARN` lines with the user (a `WARN` for a profile "identical to the template" usually means an example track is still in `tracks:`): a profile "identical to the template" or with `(unconfirmed)` markers left means step 2 or 3 is not finished.
+It checks `config.yaml` (tracks, visa, triage flags, `prompts.yaml`, `texts.yaml`), every profile file the tracks name, and that both keys are set, and it prints how many searches and jobs a real run would make. It makes no network call and writes nothing. Fix every `ERROR` line and run it again until it ends with `Ready.` Read the `WARN` lines with the user (a `WARN` for a profile "identical to the template" usually means an example track is still in `tracks:`): a profile "identical to the template" or with `(unconfirmed)` markers left means step 2 or 3 is not finished.
 
 ### 8. Test run, then iterate
 

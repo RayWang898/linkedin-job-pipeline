@@ -11,7 +11,7 @@ Read `README.md` first for what the tool does, what it costs and its limits. Thi
 
 | Path in the workspace | What it is |
 | --- | --- |
-| `config.yaml` | Locations, search queries, filter rules, tracks, scoring settings, visa and tracker options |
+| `config.yaml` | Locations, search queries, filter rules, tracks, scoring settings, visa, triage flags and tracker options |
 | `profiles/shared.md`, `profiles/<track>.md` | The user's background and what they want per track |
 | `.env` | `APIFY_TOKEN`, `ANTHROPIC_API_KEY`, optional `NTFY_TOPIC` |
 | `prompts.yaml`, `texts.yaml` | Optional overrides of the model prompts and of the note and summary wording |
@@ -67,6 +67,7 @@ In Claude Code, run `/setup`: it follows the steps below and its question bank i
 Start from evidence, not from guesses.
 
 - **Too many weak jobs on the shortlist**, or jobs the user keeps skipping: ask for a few examples and the reason they skipped each (level, years, role, location, company). Then change the matching lever: tighten `exclude_title_patterns` or `min_years_exclude` (hard rules, no model cost); sharpen "what I do not want" in the profiles; raise `scoring.shortlist_min_score`; lower `scoring.shortlist_size`.
+- **Weak jobs the filters cannot express** (asks for too many years in the middle of the text, a field the user dislikes, vague or agency postings): offer `triage_flags.enabled: true`. Write the user's "Interested" and "Not interested" lists in `profiles/shared.md`, and their own rules in `prompts.yaml` (`flags_rubric`, starting from the default in `prompts.py`). Flagged jobs are capped at 2 and listed in `_summary.md`; go through that list with the user for a few days to catch wrong calls, and check with `replay_triage.py` after editing the rules.
 - **Good jobs missing**: run `calibrate.py` for the day and read "just over the applicant cap", "excluded by title" and "passed triage but missed the shortlist". Loosen the rule that removed them, or the threshold.
 - **Cost too high**: see the table in the README (fewer fetched jobs, fewer or shorter profiles, `scoring.detail_count`, a cheaper `scoring.triage_model`).
 - **Changing a prompt, a profile or the triage model changes scores.** Before relying on the change, use `replay_triage.py` on a day that is already scored and compare against a rerun of the old setup, not against the stored scores. In the project's own test, scoring the same jobs twice with the same model gave the same best score for about 84% of them, so differences of that size are noise.
@@ -78,6 +79,7 @@ Start from evidence, not from guesses.
 - `environment: APIFY_TOKEN not found` (or `ANTHROPIC_API_KEY`): the key is missing in the workspace `.env`, or the command ran from a folder that is not the workspace.
 - `config.yaml ... tracks` or `track id ...` messages: fix the `tracks:` list as the message says. `Missing profile for track X`: the file named in `profile:` is not in `profiles/`.
 - `visa_skip_locations, exclude_visa_patterns moved under visa:`: an older config; move them under a `visa:` section as `skip_locations` and `exclude_patterns`.
+- `triage_flags must be a section with enabled: true or enabled: false`: write it as `triage_flags:` with `enabled: true` (or false) on the next line.
 - `prompts.yaml: unknown names` or `texts.yaml: unknown names`: a key is misspelled; the message lists the valid ones.
 - **A day failed after retries (the user got a failure notification).** Running `run_daily.py` again is safe and does the right thing: the daily run records which steps finished for the day (`steps_done` in the `daily_runs` table) and a rerun resumes after the last finished step, without fetching again and without paying again for jobs already scored. If nobody reruns it, the next daily run first finishes any of the last 3 days that failed after fetching ("Catching up ..." in the log, shortlist in that day's own folder) and then does today. To resume without a full run: `score.py --only raw_<YYYYMMDD>.json --run-date <YYYY-MM-DD>`.
   - `Failed: resume: ... is recorded as done but data/... is missing` means a file of an unfinished day was deleted. Do not delete `jobs.db` rows to work around it without asking the user: tell them which day and file.

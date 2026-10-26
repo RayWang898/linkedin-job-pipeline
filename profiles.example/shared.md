@@ -21,6 +21,14 @@ Tools, software and languages you can back up in an interview. List only what yo
 Describe job types that fit you but are not fully covered by any of your base resumes. A job in one of these types gets flagged "needs custom resume".
 - Example: Roles in healthcare communications, where the base resumes do not show regulated-content experience.
 
+## Interested
+<!-- Used only when triage_flags.enabled is true in config.yaml. A job of one of these types sets interest_match: its fit is judged generously, and it is kept even when it asks for more years than you have. -->
+- Example: Marketing roles at consumer technology brands.
+
+## Not interested
+<!-- Used only when triage_flags.enabled is true. A job of one of these types sets not_interested and stays off the shortlist (listed in the daily summary). -->
+- Example: Insurance sales and recruiting roles.
+
 ## Hard rules
 Things that make a job a bad fit no matter what the score is.
 - Example: no roles that require frequent travel.

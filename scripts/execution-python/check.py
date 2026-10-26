@@ -114,6 +114,11 @@ def collect(db: str, max_jobs: int | None) -> Report:
         r.add("ok", "tracks", ", ".join(f"{t} {i['name']}" for t, i in tracks.items()))
         r.plan["tracks"] = list(tracks)
         r.plan["visa_enabled"] = score.VISA_ENABLED
+        r.plan["triage_flags_enabled"] = score.FLAGS_ENABLED
+        min_score = (cfg.get("scoring") or {}).get("shortlist_min_score", 4)
+        if score.FLAGS_ENABLED and isinstance(min_score, int) and min_score <= score.FLAG_CAP:
+            r.add("warn", "triage_flags", f"enabled, but shortlist_min_score {min_score} is not above the flag cap {score.FLAG_CAP}: "
+                                          "flagged jobs can still reach the shortlist")
         for name in ("prompts.yaml", "texts.yaml"):
             if Path(name).exists():
                 r.add("ok", name, "found: overrides the built-in text")

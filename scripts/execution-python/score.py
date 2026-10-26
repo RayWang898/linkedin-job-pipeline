@@ -65,10 +65,21 @@ def load_tracks(path: Path = CONFIG_PATH) -> dict:
     return tracks
 
 
+def flag_settings(config: dict) -> dict:
+    """Normalized `triage_flags:` section: {enabled}. Off unless `triage_flags.enabled` is true."""
+    section = config.get("triage_flags")
+    if section is None:
+        section = {}
+    if not isinstance(section, dict) or not isinstance(section.get("enabled", False), bool):
+        sys.exit("config.yaml: triage_flags must be a section with `enabled: true` or `enabled: false`; see config.example.yaml.")
+    return {"enabled": section.get("enabled", False)}
+
+
 TRACKS = load_tracks()
 with CONFIG_PATH.open(encoding="utf-8") as _f:
     _config = yaml.safe_load(_f)
 VISA_ENABLED = visa_settings(_config)["enabled"]
+FLAGS_ENABLED = flag_settings(_config)["enabled"]
 TRACKER_LABELS = tracker_labels(_config)
 OUTPUT_LANGUAGE = (_config.get("scoring") or {}).get("output_language") or "English"
 P = prompts.load(OUTPUT_LANGUAGE)  # all model-facing text; see prompts.py
@@ -77,6 +88,12 @@ fill = texts.fill
 LEGACY_USAGE_PREFIX = "API 用量："  # summary files written before texts.py used this label; still recognized when re-running a day
 SHARED_FILE = "shared.md"
 UNKNOWN_APPLICANTS = 10**9  # unknown applicant count sorts last
+# Triage flags (triage_flags.enabled): the model reports them, the program caps every track score of a job with a capping flag
+# at FLAG_CAP (below the shortlist threshold, and such a job is never needs_custom). interest_match waives INTEREST_WAIVES.
+CAPPING_FLAGS = ("level_too_high", "not_interested", "suspicious")
+FLAG_FIELDS = (*CAPPING_FLAGS, "interest_match")
+FLAG_CAP = 2
+INTEREST_WAIVES = ("level_too_high",)  # the user still wants to try a job they are interested in when it asks for more years
 
 TRIAGE_TOOL = {
     "name": "submit_triage",
@@ -104,6 +121,12 @@ if VISA_ENABLED:  # the visa feature adds one field; with it off, the schema has
     }
     TRIAGE_TOOL["input_schema"]["properties"] = _props
     TRIAGE_TOOL["input_schema"]["required"] = ["scores", "custom_family", "visa_blocked", "reason"]
+if FLAGS_ENABLED:  # the flags go before reason, so the model decides them before it writes the reason
+    _schema = TRIAGE_TOOL["input_schema"]
+    _reason = _schema["properties"].pop("reason")
+    _schema["properties"].update({f: {"type": "boolean", "description": P[f"{f}_description"]} for f in FLAG_FIELDS})
+    _schema["properties"]["reason"] = {**_reason, "description": _reason["description"] + P["reason_flags_note"]}
+    _schema["required"] = [k for k in _schema["required"] if k != "reason"] + [*FLAG_FIELDS, "reason"]
 
 DETAIL_TOOL = {
     "name": "submit_detail",
@@ -130,7 +153,7 @@ SUMMARY_TOOL = {
 }
 
 SUMMARY_INSTRUCTIONS = P["summary_instructions"]
-RUBRIC = P["rubric"] + ("\n\n" + P["visa_rubric"] if VISA_ENABLED else "")
+RUBRIC = P["rubric"] + ("\n\n" + P["visa_rubric"] if VISA_ENABLED else "") + ("\n\n" + P["flags_rubric"] if FLAGS_ENABLED else "")
 DETAIL_INSTRUCTIONS = P["detail_instructions"]
 
 
@@ -138,6 +161,7 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
     with path.open(encoding="utf-8") as f:
         config = yaml.safe_load(f)
     visa_settings(config)  # fail early on an outdated config
+    flag_settings(config)
     return config
 
 
@@ -248,8 +272,9 @@ def validate_triage(data: dict) -> None:
         if not isinstance(scores[t], int) or not 0 <= scores[t] <= 5:
             raise ValueError(f"Invalid score for track {t}: {scores[t]!r}")
     if (not isinstance(data["custom_family"], bool) or not str(data["reason"]).strip()
-            or (VISA_ENABLED and not isinstance(data["visa_blocked"], bool))):
-        raise ValueError("custom_family, visa_blocked or reason is invalid")
+            or (VISA_ENABLED and not isinstance(data["visa_blocked"], bool))
+            or (FLAGS_ENABLED and not all(isinstance(data[f], bool) for f in FLAG_FIELDS))):
+        raise ValueError("custom_family, visa_blocked, a flag or reason is invalid")
 
 
 def validate_detail(data: dict) -> None:
@@ -317,11 +342,16 @@ VISA_HINT = re.compile(
     r"right to work|immigration|\bOPT\b|\bCPT\b|citizen|permanent resident", re.I)
 
 
-def visa_excerpts(description: str, max_items: int = 3, before: int = 150, after: int = 250) -> list[str]:
-    """Extract visa-related passages from the full description (overlapping windows merged), so a triage that only sees the start still reads a visa statement at the end."""
+# years requirements ("5-7 years", "8+ years", "3 or more years"), often late in the posting, past what triage sees
+YEARS_HINT = re.compile(r"\b\d{1,2}\s*(?:\+|(?:-|–|to)\s*\d{1,2})?\s*\+?\s*(?:or more |plus )?years?\b", re.I)
+
+
+def visa_excerpts(description: str, max_items: int = 3, before: int = 150, after: int = 250,
+                  pattern: re.Pattern = VISA_HINT) -> list[str]:
+    """Extract passages matching pattern from the full description (overlapping windows merged), so a triage that only sees the start still reads a visa statement or a years requirement at the end."""
     text = re.sub(r"\s+", " ", description or "")
     windows: list[list[int]] = []
-    for m in VISA_HINT.finditer(text):
+    for m in pattern.finditer(text):
         start, end = max(0, m.start() - before), min(len(text), m.end() + after)
         if windows and start <= windows[-1][1]:
             windows[-1][1] = max(windows[-1][1], end)
@@ -341,10 +371,14 @@ def triage_user_prompt(job: dict, chars: int, visa_skip_locations: list[str] | N
     location = (job.get("location") or "").lower()
     skip_visa = any(loc.lower() in location for loc in (visa_skip_locations or []))  # e.g. locations in the candidate's home country need no sponsorship
     excerpts = [] if skip_visa or not VISA_ENABLED else visa_excerpts(job.get("description") or "")
-    visa_block = ""
+    extra = ""
     if excerpts:
-        visa_block = "\n\n<visa_excerpts>\n" + "\n".join(f"- {e}" for e in excerpts) + "\n</visa_excerpts>"
-    return f"<job>\n{json.dumps(fields, ensure_ascii=False, indent=2)}\n</job>{visa_block}\n\n{P['triage_request']}"
+        extra = "\n\n<visa_excerpts>\n" + "\n".join(f"- {e}" for e in excerpts) + "\n</visa_excerpts>"
+    if FLAGS_ENABLED:  # level_too_high needs the years requirements past the cut (the part before it is already in description)
+        years = visa_excerpts((job.get("description") or "")[chars:], before=100, after=150, pattern=YEARS_HINT)
+        if years:
+            extra += "\n\n<years_excerpts>\n" + "\n".join(f"- {e}" for e in years) + "\n</years_excerpts>"
+    return f"<job>\n{json.dumps(fields, ensure_ascii=False, indent=2)}\n</job>{extra}\n\n{P['triage_request']}"
 
 
 def drop_unsupported_visa_block(raw: dict, job: dict) -> dict:
@@ -358,9 +392,16 @@ def finalize_triage(raw: dict) -> dict:
     """The program derives the best track and needs_custom (ties go to the earlier track in TRACKS).
 
     visa_blocked is only a warning for the user (ADR 0005): it never changes a score. Excluding a job for sponsorship is the filter's job.
+    With triage flags on (ADR 0006), a capping flag caps every track at FLAG_CAP (the model's scores are kept in scores_raw) and the job
+    is never needs_custom; interest_match waives INTEREST_WAIVES, recorded in waived.
     """
     visa_blocked = VISA_ENABLED and bool(raw.get("visa_blocked"))
-    scores = raw["scores"]
+    flags, waived, interest_match = [], [], False
+    if FLAGS_ENABLED:
+        interest_match = bool(raw.get("interest_match"))
+        waived = [f for f in INTEREST_WAIVES if raw.get(f)] if interest_match else []
+        flags = [f for f in CAPPING_FLAGS if raw.get(f) and f not in waived]
+    scores = {t: min(raw["scores"][t], FLAG_CAP) for t in TRACKS} if flags else raw["scores"]
     best_track = max(TRACKS, key=lambda t: (scores[t], -list(TRACKS).index(t)))
     best_score = scores[best_track]
     result = {
@@ -368,10 +409,14 @@ def finalize_triage(raw: dict) -> dict:
         "best_track": best_track,
         "best_score": best_score,
         "custom_family": raw["custom_family"],
-        "needs_custom": raw["custom_family"] and best_score < 4,
+        "needs_custom": raw["custom_family"] and best_score < 4 and not flags,
         "visa_blocked": visa_blocked,
         "reason": raw["reason"].strip(),
     }
+    if FLAGS_ENABLED:
+        result.update(flags=flags, interest_match=interest_match, waived=waived)
+    if flags:
+        result["scores_raw"] = raw["scores"]
     return result
 
 
@@ -749,6 +794,15 @@ def format_summary(run_date: str, stats: list[str], usages: dict[str, Usage], se
     if blocked:  # the visa judgment lowers scores silently, so list the jobs to make wrong calls easy to spot
         lines += [fill(TX["summary_visa_blocked"], n=len(blocked))]
         lines += [fill(TX["summary_visa_item"], company=j["company"], title=j["title"], reason=j["triage"]["reason"]) for j in blocked[:30]]
+    for flag in CAPPING_FLAGS:  # a capped job leaves the shortlist silently, so list it to make wrong calls easy to spot
+        hits = [j for j in scored if flag in j["triage"].get("flags", [])]
+        if hits:
+            lines += [fill(TX["summary_flag_capped"], label=TX[f"flag_{flag}"], cap=FLAG_CAP, n=len(hits))]
+            lines += [fill(TX["summary_flag_item"], company=j["company"], title=j["title"], reason=j["triage"]["reason"]) for j in hits[:30]]
+    waived = [j for j in scored if j["triage"].get("waived")]
+    if waived:  # level too high, but on the interest list: scored as usual
+        lines += [fill(TX["summary_flag_waived"], n=len(waived))]
+        lines += [fill(TX["summary_flag_item"], company=j["company"], title=j["title"], reason=j["triage"]["reason"]) for j in waived[:30]]
     lines += ["", TX["summary_tracks_heading"], ""] + track_table(scored, selection, pre_counts) + [""]
     if queries_table:
         lines += [TX["summary_queries_heading"], ""] + queries_table + [""]

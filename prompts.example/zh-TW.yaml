@@ -45,6 +45,19 @@ visa_rubric: |-
   - true：原文明確表示不提供簽證 sponsor（含「現在或未來」），或明確不支援 OPT／STEM OPT／CPT／H-1B 申請者，或要求美國公民／永久居民身分。
   - false：其他情況，包括只寫「須具備美國工作授權（authorized to work）」而沒有提到 sponsor 或 OPT 的限制、願意 sponsor、或完全沒提。
   visa_blocked 為 true 時，各條路線的分數仍照常依職缺內容評，程式只會提醒使用者，不會更動分數；reason 要提到簽證。
+flags_rubric: |-
+  <job> 的 description 只有前段（程式截斷），結尾不完整是正常的，不代表職缺資訊不足；後段的年資要求另附在 <years_excerpts>，請一併讀。
+
+  旗標：另外設定 level_too_high、not_interested、suspicious、interest_match。level_too_high、not_interested、suspicious 任一為 true 時，各條路線分數照常依職缺內容評，程式會把分數壓低讓職缺不進短名單，並列在每日統計；reason 要提到原因。
+  - level_too_high：層級明顯高於 shared.md 所寫的求職者層級：職缺任何一處（含 <years_excerpts>）明確要求的年資明顯多於求職者，即使另一處寫較少；或職缺要直接管理團隊成員。年資只差一點不算，照「層級與年資」面向扣分即可。
+  - not_interested：職缺明確屬於 shared.md「不感興趣」清單中的任一類。沒有這份清單或清單是空的，就是 false。
+  - suspicious：以下任一即為 true：描述空泛（只有條列要求，沒有具體工作內容或公司資訊）；看不出真正雇主（人力或 talent 中介代徵且未說明客戶）；有詐騙或傳銷特徵（只抽佣、高薪低門檻、大量招募代表）。描述精簡但工作內容與公司都具體的不算；description 被截斷不算。
+  - interest_match：職缺屬於或明顯接近 shared.md「有興趣」清單中的任一類（看職稱與實際工作內容）。為 true 時工作內容契合度可從寬評；level_too_high 仍照實回報（程式會判斷要不要壓分），層級不要再從分數另外扣。
+level_too_high_description: 層級是否明顯高於求職者：任一處要求的年資明顯多於求職者，或要直接管理團隊。
+not_interested_description: 職缺是否屬於 shared.md「不感興趣」清單中的任一類。
+suspicious_description: 職缺是否可疑：描述空泛、看不出真正雇主、或有詐騙特徵。
+interest_match_description: 職缺是否屬於或明顯接近 shared.md「有興趣」清單中的任一類。
+reason_flags_note: 任一旗標為 true 時要提到該原因。
 reason_description: 一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分。
 reason_description_visa: 一句話理由（繁體中文，不超過 40 字），說明最佳路線為何得該分；visa_blocked 為 true 時要提到簽證。
 visa_blocked_description: 職缺原文是否明確表示不提供簽證 sponsor、不支援 OPT／STEM OPT，或要求公民／永久居民身分。只要求「須有美國工作授權」不算。
