@@ -20,13 +20,10 @@ Usage:
 
 import argparse
 import json
-import os
 import re
 import sys
 from datetime import date
 from pathlib import Path
-
-import anthropic
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import dedup
@@ -96,8 +93,8 @@ if __name__ == "__main__":
     if not (args.job_id or args.file):
         sys.exit("Give a LinkedIn jobId, or add a non-LinkedIn job with --file (giving both means a LinkedIn job outside the fetch scope).")
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY not found. Set it in .env or export it as an environment variable.")
+    if problem := score.providers.missing(score.PROVIDER):
+        sys.exit(problem)
 
     day_dir = score.SHORTLIST_DIR / args.date
     day_dir.mkdir(parents=True, exist_ok=True)
@@ -123,7 +120,7 @@ if __name__ == "__main__":
 
     profiles = score.load_profiles()
     config = score.load_config()
-    client = anthropic.Anthropic()
+    client = score.providers.make_client(score.PROVIDER)
     conn = score.init_db(args.db)
     score.init_score_tables(conn)
     usages = {"triage": score.Usage(), "detail": score.Usage(), "summary": score.Usage()}

@@ -45,6 +45,7 @@ Do these in order. Tasks 1 and 2 matter most: without them the engine cannot run
 | 19 | Make the GitHub repo public; set description and topics | later | Only with the maintainer's explicit yes |
 | 20 | Migrate the maintainer's own setup: move their data into a workspace, repoint the launchd job to this repo, retire the engine code in the old folder | later | Keep the old folder as a backup for a while. This is the step that ends the duplication |
 | 20a | Port the maintainer's triage flags (level too high, not interested, suspicious, interest match) before the migration | done | ADR 0006. Mechanism in the engine behind `triage_flags.enabled` (default off); rules in the workspace's `prompts.yaml` and `shared.md`. Not ported yet: `replay_triage.py --labeled` (its note keywords are user-specific) |
+| 20b | A scoring provider that uses a Claude subscription instead of API credit (`scoring.provider: "claude-code"`) | done | ADR 0007. `providers.py`; each call runs `claude -p` with the tool schema as structured output, no tools, no settings, outside the workspace, without `ANTHROPIC_API_KEY`. Tested with a fake `claude` command; the real output format was checked by hand once (Claude Code 2.1.310). A full real day is still to be run |
 | 21 | `CONTRIBUTING.md` and issue templates (short) | later | |
 
 ## P4: Later, not blocking

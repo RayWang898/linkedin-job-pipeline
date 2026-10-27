@@ -8,7 +8,7 @@ detailed-review results are cached in the detail_reviews table.
 See docs/adr/ for the design decisions.
 
 Usage: venv/bin/python scripts/execution-python/score.py [--db test.db] [--limit N] [--no-detail]
-Needs the environment variable ANTHROPIC_API_KEY (can be set in .env).
+Needs ANTHROPIC_API_KEY (can be set in .env), or the claude command when scoring.provider is claude-code.
 """
 
 import argparse
@@ -22,11 +22,11 @@ from collections import Counter
 from datetime import date
 from pathlib import Path
 
-import anthropic
 import yaml
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import prompts
+import providers
 import texts
 from dedup import init_db
 from filter import effective_applicant_count, tracker_labels, visa_settings
@@ -79,6 +79,10 @@ TRACKS = load_tracks()
 with CONFIG_PATH.open(encoding="utf-8") as _f:
     _config = yaml.safe_load(_f)
 VISA_ENABLED = visa_settings(_config)["enabled"]
+try:
+    PROVIDER = providers.provider(_config)
+except ValueError as _e:
+    sys.exit(str(_e))
 FLAGS_ENABLED = flag_settings(_config)["enabled"]
 TRACKER_LABELS = tracker_labels(_config)
 OUTPUT_LANGUAGE = (_config.get("scoring") or {}).get("output_language") or "English"
@@ -241,11 +245,14 @@ def call_model(client, provider: str, model: str, system: list[dict], user: str,
 
     With force_tool=False the model gets tool_choice auto and calls the tool because the prompt asks it to (some models cannot be forced).
     """
-    if provider != "anthropic":
-        raise NotImplementedError(f"Provider not implemented: {provider}")
     last_error = None
     for _ in range(2):
         try:
+            if provider == "claude-code":
+                answer, used = providers.claude_code_call(model, system, user, tool)
+                usage.add(used)
+                validate(answer)
+                return answer
             response = client.messages.create(
                 model=model, max_tokens=max_tokens, system=system,
                 tools=[tool],
@@ -927,15 +934,15 @@ if __name__ == "__main__":
     parser.add_argument("--summary-name", default="_summary.md", help="file name of the stats file (each backfill batch uses a different one so none is overwritten)")
     args = parser.parse_args()
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY not found. Set it in .env or export it as an environment variable.")
+    if problem := providers.missing(PROVIDER):
+        sys.exit(problem)
     try:
         profiles = load_profiles()
     except FileNotFoundError as e:
         sys.exit(f"Profile file not found: {e.filename}. Create profiles/ first.")
 
     config = load_config()
-    client = anthropic.Anthropic()
+    client = providers.make_client(PROVIDER)
     conn = init_db(args.db)
     init_score_tables(conn)
 

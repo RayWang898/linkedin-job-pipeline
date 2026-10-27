@@ -8,7 +8,8 @@ Usage:
   venv/bin/python scripts/execution-python/run_daily.py --force         # rerun even if today already succeeded
   venv/bin/python scripts/execution-python/run_daily.py --no-notify     # no notification (for testing)
   venv/bin/python scripts/execution-python/run_daily.py --max-jobs 5 --db test.db   # testing: a few jobs and a test database
-Needs the environment variables APIFY_TOKEN, ANTHROPIC_API_KEY and NTFY_TOPIC (can be set in .env).
+Needs the environment variables APIFY_TOKEN, ANTHROPIC_API_KEY and NTFY_TOPIC (can be set in .env);
+with scoring.provider claude-code, the claude command instead of ANTHROPIC_API_KEY.
 """
 
 import argparse
@@ -406,9 +407,10 @@ def main() -> int:
     if resume:
         log(f"Resuming {run_date}: already done: {', '.join(steps_done(conn, run_date))}")
     try:
-        for key in ("APIFY_TOKEN", "ANTHROPIC_API_KEY"):
-            if not os.environ.get(key):
-                raise StepFailed("environment", f"{key} not found")
+        if not os.environ.get("APIFY_TOKEN"):
+            raise StepFailed("environment", "APIFY_TOKEN not found")
+        if problem := score.providers.missing(score.PROVIDER):
+            raise StepFailed("environment", problem)
         if not args.no_catch_up:
             catch_up(conn, args, cfg, run_date, topic)
         gap = days_since_last_success(conn, run_date)

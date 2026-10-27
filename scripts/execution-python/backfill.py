@@ -16,7 +16,7 @@ Usage:
   venv/bin/python scripts/execution-python/backfill.py --run-date 20261005    # resume an interrupted backfill (same batch)
   venv/bin/python scripts/execution-python/backfill.py --location "London, UK" --folder-suffix backfill-london --run-date 20261005lon   # London backfill
   venv/bin/python scripts/execution-python/backfill.py --queries A,E --run-date 20261005b   # another batch: a new --run-date keeps the files and summary of the previous batch
-Needs the environment variables APIFY_TOKEN and ANTHROPIC_API_KEY (can be set in .env).
+Needs APIFY_TOKEN and ANTHROPIC_API_KEY (can be set in .env); with scoring.provider claude-code, the claude command instead of the key.
 """
 
 import argparse
@@ -35,6 +35,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
 import fetch  # noqa: E402
+import providers  # noqa: E402
 
 RAW_DIR = Path("data/1_raw")
 SECONDS_PER_DAY = 86400
@@ -127,8 +128,13 @@ def main() -> None:
     token = os.environ.get("APIFY_TOKEN")
     if todo and not token:
         sys.exit("APIFY_TOKEN not found. Set it in .env or export it as an environment variable.")
-    if not args.fetch_only and not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY not found. Set it in .env or export it as an environment variable.")
+    if not args.fetch_only:
+        try:
+            problem = providers.missing(providers.provider(config))
+        except ValueError as e:
+            problem = str(e)
+        if problem:
+            sys.exit(problem)
 
     failed = []
     if todo:

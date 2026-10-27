@@ -37,6 +37,7 @@ Do these in order. Stop for the user's go-ahead at the end of steps 2 to 7.
 - Ask where the user's data should live (suggest `~/jobsearch`). The folder must be outside this repository: inside it, `git add -A` would pick up files the ignore rules miss (`prompts.yaml`, `texts.yaml`, an applied-jobs list, notes), which can hold personal data. If the user names a folder inside the repository, say this in one sentence and suggest an outside one; only go ahead if they insist, and then tell them to add files by name when they commit. If the folder already has a `config.yaml` or `profiles/`, ask whether to update them or start over. Never overwrite a file without asking.
 - Create it with `"$ENGINE/venv/bin/python" "$ENGINE/scripts/execution-python/init.py" <folder>`. It copies in `config.yaml` and `.env` from the examples and creates an empty `profiles/` (the example profiles stay in the engine; read `profiles.example/` as the template and write the user's own files), adds a `.gitignore`, and never overwrites a file that is already there.
 - Ask the user to paste their `APIFY_TOKEN` and `ANTHROPIC_API_KEY` into `.env` themselves. Check afterwards that both are non-empty without printing them (for example `grep -c '^APIFY_TOKEN=.' .env`).
+- If the user has no API credit but has a Claude subscription, offer `scoring.provider: "claude-code"` instead of `ANTHROPIC_API_KEY` (scoring through the `claude` command; it counts toward their plan's usage limits, see README "Cost"). Then only `APIFY_TOKEN` is needed in `.env`.
 
 ### 2. Background (`profiles/shared.md`)
 

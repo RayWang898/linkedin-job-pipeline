@@ -10,19 +10,16 @@ Sampling: up to --positives jobs whose baseline score is >= 4 (to see whether th
 Usage:
   venv/bin/python scripts/execution-python/replay_triage.py --file raw_<name>.json                        # default: Haiku, 50 + 50 jobs
   venv/bin/python scripts/execution-python/replay_triage.py --file raw_<name>.json --positives 10 --others 10   # small test
-Needs the environment variable ANTHROPIC_API_KEY (can be set in .env).
+Needs ANTHROPIC_API_KEY (can be set in .env), or the claude command when scoring.provider is claude-code.
 """
 
 import argparse
 import json
-import os
 import random
 import sys
 import time
 from datetime import date
 from pathlib import Path
-
-import anthropic
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -96,8 +93,8 @@ def main() -> None:
     parser.add_argument("--model", help="model to replay with (default: triage_model from config)")
     args = parser.parse_args()
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY not found. Set it in .env or export it as an environment variable.")
+    if problem := score.providers.missing(score.PROVIDER):
+        sys.exit(problem)
     config = score.load_config()
     model = args.model or config["scoring"]["triage_model"]
     path = score.SCORED_DIR / args.file
@@ -106,7 +103,7 @@ def main() -> None:
     print(f"Replaying {len(jobs)} jobs (baseline >= 4: {sum(j['triage']['best_score'] >= 4 for j in jobs)}), model {model}", flush=True)
 
     profiles = score.load_profiles()
-    client = anthropic.Anthropic()
+    client = score.providers.make_client(score.PROVIDER)
     usage = score.Usage()
     rows = []
     start = time.time()

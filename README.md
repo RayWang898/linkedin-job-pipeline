@@ -24,7 +24,9 @@ The daily run is a plain script. It needs no agent at runtime; it calls the Anth
 
 - Python 3.11 or newer, and a terminal
 - An [Apify](https://apify.com) account and API token (runs the scraper)
-- An [Anthropic](https://console.anthropic.com) API key (runs the scoring)
+- For the scoring, one of:
+  - an [Anthropic](https://console.anthropic.com) API key (the default), or
+  - [Claude Code](https://claude.com/claude-code) logged in with a Claude subscription, and `scoring.provider: "claude-code"` in `config.yaml` (no API key; see [Cost](#cost))
 - Optional: an [ntfy](https://ntfy.sh) topic for phone notifications
 - Optional: macOS, if you want to use the included launchd example for scheduling
 
@@ -53,7 +55,7 @@ Add `--language zh-TW` to also copy the Traditional Chinese `prompts.yaml` and `
 
 **3. Fill in your details.**
 
-- `.env`: put your `APIFY_TOKEN` and `ANTHROPIC_API_KEY` (and `NTFY_TOPIC` if you want notifications).
+- `.env`: put your `APIFY_TOKEN` and `ANTHROPIC_API_KEY` (and `NTFY_TOPIC` if you want notifications). With `scoring.provider: "claude-code"`, leave `ANTHROPIC_API_KEY` out.
 - `profiles/shared.md`: your background, shared experience, skills, hard rules, and the job types worth a custom resume. This is the most important file: the scoring is only as good as what you write here.
 - `profiles/<track>.md`: one file per job direction, describing what you want and what to emphasize for it.
 - `config.yaml`: your locations, search queries, filter rules and `tracks:` (one entry per direction: a letter, a name, a tag, the profile file in `profiles/` and the file name of your resume). The example has two tracks; use as many as you like, at least one. Every setting is commented in the file.
@@ -97,6 +99,8 @@ The Mac must be awake at the scheduled time; if it was asleep, launchd runs the 
 You pay two providers. Check both price pages before you rely on these numbers; they change.
 
 **Anthropic (scoring).** Measured on the author's setup, which fetches about 650 postings a day and scores them on four tracks: roughly 0.24M input, 0.03M output, 0.02M cache-write and 0.9M cache-read tokens a day, across triage and detailed review. At the list prices of October 2026 (Haiku 4.5: $1 input / $5 output per million tokens, used for triage and summaries; Sonnet 5.5: $2 / $10, used for the detailed review; cache reads about a tenth of the input price) that is about **$0.5 to $1 a day**, or $15 to $30 a month. A rough rule from a measured sample: triaging one job costs about a quarter of a cent with Haiku 4.5.
+
+**Scoring on a Claude subscription instead (`scoring.provider: "claude-code"`).** Each model call runs `claude -p` (Claude Code in print mode) with no tools, so nothing is billed per token; the calls count toward your plan's usage limits instead. A full day is several hundred calls, so a smaller plan may hit its limit partway: the jobs that could not be scored are skipped that day (listed as failures in the summary), and you can score the day again later with `score.py --run-date`. Each call starts a new `claude` process, so a day takes longer than with the API. The `claude` command must be logged in for the user the schedule runs as; `--dry-run` only checks that the command exists.
 
 **Apify (fetching).** The default actor charges per event: $0.00006 for each job, $0.00001 for each job whose full description it also fetches (`apify.fetch_details`, which the pipeline needs), and $0.00005 each time a search starts, plus Apify platform usage (compute). A real test run (one search, 5 jobs) was billed $0.0004 in all, and its compute (0.0006 compute units) showed as $0.000. At about 650 postings a day over 14 searches that is roughly $0.05 a day, or $1.50 a month, before compute. Compute depends on how long a run takes and was not measurable at test size, so check the Apify console after your first full-size run.
 

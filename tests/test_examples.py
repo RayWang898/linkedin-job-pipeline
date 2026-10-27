@@ -57,7 +57,7 @@ def test_every_example_profile_named_by_the_example_config_exists():
 
 @pytest.mark.parametrize("script", sorted(p.name for p in SCRIPTS.glob("*.py") if p.name not in ("sitecustomize.py",)))
 def test_every_script_starts_and_prints_help(ws, script):
-    if script in ("workspace.py", "overrides.py", "prompts.py", "texts.py"):
+    if script in ("workspace.py", "overrides.py", "prompts.py", "texts.py", "providers.py"):
         pytest.skip("a library, not a command")
     args = ["--help"] if script == "init.py" else ["--help"]
     proc = ws.run(script, *args, workspace_arg=script != "init.py")

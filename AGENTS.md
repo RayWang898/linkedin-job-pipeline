@@ -13,7 +13,7 @@ Read `README.md` first for what the tool does, what it costs and its limits. Thi
 | --- | --- |
 | `config.yaml` | Locations, search queries, filter rules, tracks, scoring settings, visa, triage flags and tracker options |
 | `profiles/shared.md`, `profiles/<track>.md` | The user's background and what they want per track |
-| `.env` | `APIFY_TOKEN`, `ANTHROPIC_API_KEY`, optional `NTFY_TOPIC` |
+| `.env` | `APIFY_TOKEN`, `ANTHROPIC_API_KEY` (not needed with `scoring.provider: "claude-code"`), optional `NTFY_TOPIC` |
 | `prompts.yaml`, `texts.yaml` | Optional overrides of the model prompts and of the note and summary wording |
 | `resumes/` | The user's resumes (the program only shows their file names) |
 | `data/` | `1_raw` to `7_shortlist`: every stage's output. `data/7_shortlist/<date>/` is what the user reads |
@@ -54,7 +54,7 @@ Re-running `score.py` on a day whose jobs are already scored costs nothing: scor
 
 In Claude Code, run `/setup`: it follows the steps below and its question bank is in `.claude/skills/setup/`. With another agent, follow these steps yourself and use `.claude/skills/setup/references/` (interview questions, what a good profile looks like, how to write queries and filters) as your guide. Do this in order and stop to confirm at each numbered step.
 
-1. **Environment.** Python 3.11+, the engine's dependencies installed, and a workspace created with `init.py <folder>` (it copies the example config and `.env`, creates an empty `profiles/`, and never overwrites an existing file; the example profiles stay in `profiles.example/` as templates to write from, not to copy). Ask the user to paste their `APIFY_TOKEN` and `ANTHROPIC_API_KEY` into `.env` themselves (see rule 3).
+1. **Environment.** Python 3.11+, the engine's dependencies installed, and a workspace created with `init.py <folder>` (it copies the example config and `.env`, creates an empty `profiles/`, and never overwrites an existing file; the example profiles stay in `profiles.example/` as templates to write from, not to copy). Ask the user to paste their `APIFY_TOKEN` and `ANTHROPIC_API_KEY` into `.env` themselves (see rule 3). A user without API credit but with a Claude subscription can set `scoring.provider: "claude-code"` instead of the key; Claude Code must be installed and logged in.
 2. **Resume first, then interview, then write `profiles/`.** The scoring is only as good as these files. Ask for the resume first (a file path or pasted text; a portfolio or profile page also works) and read it only after the user agrees. Draft level, education, languages, experience and skills from it, then ask only about what it leaves out: the number for each accomplishment (two to six, with a number each); work authorization and location; tools and skills they can defend in an interview; what kinds of jobs they want (these become the tracks); what they would never do; and, only if the user names one, a job type they would apply to with a rewritten resume (otherwise write `none` under "Job types worth a custom resume"; do not suggest types). Without a resume, ask those questions one group at a time. Put the shared facts in `shared.md` (keep its section "Job types worth a custom resume (needs_custom)") and one file per track. Use `profiles.example/` as the template. Show each file to the user before saving it.
 3. **Tracks.** One entry per direction in `tracks:` in `config.yaml`: a unique capital letter `id`, a `name`, a `tag`, the `profile` file name and the `resume` file name. At least one. Two to four is typical; more tracks make every triage call longer.
 4. **Search and filters.** `apify.locations`, `apify.queries` (Boolean strings: quoted phrases, `OR` inside parentheses, `AND` for a context word) with matching `apify.query_names`, `location_whitelist`, `max_applicants`, `exclude_title_patterns`, `min_years_exclude`, `staffing_agency_blacklist`. Ask what seniority they want; the title and years filters are how it is enforced. Query labels (A, B, C ...) follow the order of `queries` and are separate from track ids.
@@ -77,6 +77,8 @@ Start from evidence, not from guesses.
 
 - Read the newest file in `logs/` first; the last lines name the step that failed.
 - `environment: APIFY_TOKEN not found` (or `ANTHROPIC_API_KEY`): the key is missing in the workspace `.env`, or the command ran from a folder that is not the workspace.
+- `The claude command (Claude Code) was not found on PATH`: `scoring.provider` is `claude-code` but `claude` is not installed, or the scheduler's PATH does not include it (launchd: add its folder to `PATH` in the plist). `claude: Not logged in`: run `claude` once in a terminal and log in.
+- `scoring.provider must be one of anthropic, claude-code`: fix the value in `config.yaml`.
 - `config.yaml ... tracks` or `track id ...` messages: fix the `tracks:` list as the message says. `Missing profile for track X`: the file named in `profile:` is not in `profiles/`.
 - `visa_skip_locations, exclude_visa_patterns moved under visa:`: an older config; move them under a `visa:` section as `skip_locations` and `exclude_patterns`.
 - `triage_flags must be a section with enabled: true or enabled: false`: write it as `triage_flags:` with `enabled: true` (or false) on the next line.

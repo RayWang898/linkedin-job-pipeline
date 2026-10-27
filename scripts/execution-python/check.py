@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 
 import workspace  # noqa: F401  (sets the working directory to the workspace; keep before any relative path)
+import providers  # noqa: E402
 
 ENGINE = Path(__file__).resolve().parents[2]
 CATCH_UP_DAYS = 3  # an earlier day that failed after fetching is finished first, if it is at most this many days old
@@ -90,8 +91,23 @@ def collect(db: str, max_jobs: int | None) -> Report:
         return r
     r.add("ok", "config", "config.yaml found and readable")
 
+    # scoring provider: the API key, or the claude command (whether it is logged in shows only on a real call)
+    try:
+        provider = providers.provider(cfg)
+    except ValueError as e:
+        r.add("error", "scoring.provider", str(e))
+        provider = None
+    r.plan["provider"] = provider
+    if provider == "claude-code":
+        if providers.missing(provider):
+            r.add("error", "claude command", "not found on PATH; install Claude Code and log in, or set scoring.provider: anthropic")
+        else:
+            r.add("ok", "claude command", "found (scoring uses your Claude subscription; run `claude` once to check you are logged in)")
+
     # keys: only whether they are set, never their value
-    for key, required in (("APIFY_TOKEN", True), ("ANTHROPIC_API_KEY", True), ("NTFY_TOPIC", False)):
+    for key, required in (("APIFY_TOKEN", True), ("ANTHROPIC_API_KEY", provider == "anthropic"), ("NTFY_TOPIC", False)):
+        if key == "ANTHROPIC_API_KEY" and provider != "anthropic":
+            continue
         if os.environ.get(key):
             r.add("ok", f"env {key}", "set")
         elif required:

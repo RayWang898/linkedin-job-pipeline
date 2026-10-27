@@ -95,7 +95,7 @@ def main() -> int:
     dry = f'"{python}" "{ENGINE}/scripts/execution-python/run_daily.py" --workspace "{target}" --dry-run'
     print(f"""
 Next:
-  1. Put your keys in {target / '.env'} (APIFY_TOKEN and ANTHROPIC_API_KEY).
+  1. Put your keys in {target / '.env'} (APIFY_TOKEN and ANTHROPIC_API_KEY; with scoring.provider "claude-code" no ANTHROPIC_API_KEY).
   2. Write your profiles in {target / 'profiles'} (use {ENGINE / 'profiles.example'} as the template) and your tracks, queries and filters in {target / 'config.yaml'}.
      config.yaml lists two example tracks until you replace them; --dry-run reports their missing profile files.
      In Claude Code, run /setup from the engine folder and it will interview you and write them for you.

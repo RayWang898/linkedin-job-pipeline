@@ -124,6 +124,10 @@ tracks:
     resume: Resume_PM.docx
 
 scoring:
+  # Who answers the model calls (ADR 0007):
+  #   "anthropic"    the Anthropic API; needs ANTHROPIC_API_KEY in .env and is billed per token
+  #   "claude-code"  the `claude` command (Claude Code) on your Claude subscription; no API key, but it counts
+  #                  toward your plan's usage limits and is slower (one claude process per call)
   provider: "anthropic"
   triage_model: "claude-haiku-4-5-20251001"   # scores every job
   detail_model: "claude-sonnet-5-5"           # detailed advice, shortlisted jobs only
