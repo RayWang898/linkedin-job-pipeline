@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Stand-in for the `claude` command (Claude Code) used by the claude-code scoring provider.
+
+It answers `claude -p --json-schema ... --output-format json` like the real command: one JSON object on stdout with
+structured_output, usage and is_error. The answer comes from the same rules as the fake Anthropic SDK (fakes.answer_for).
+Every call is logged with kind "claude-code", its arguments, its working folder and whether ANTHROPIC_API_KEY reached it.
+
+  JOBSEARCH_TEST_MODEL_ERRORS        every call fails (is_error, exit code 1)
+  JOBSEARCH_TEST_CLAUDE_BAD_OUTPUT   the first N calls return an answer that does not fit the schema
+"""
+
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import fakes  # noqa: E402
+
+
+def option(argv: list[str], name: str) -> str | None:
+    return argv[argv.index(name) + 1] if name in argv else None
+
+
+def tool_for(schema: dict) -> dict:
+    """The real command gets only the schema, not a tool name; the fields tell the three tools apart."""
+    props = schema.get("properties", {})
+    name = "submit_summary" if "summary" in props else "submit_detail" if "resume" in props else "submit_triage"
+    return {"name": name, "input_schema": schema}
+
+
+def main() -> int:
+    argv = sys.argv[1:]
+    user = sys.stdin.read()
+    schema = json.loads(option(argv, "--json-schema") or "{}")
+    tool = tool_for(schema)
+    fakes.log({"kind": "claude-code", "model": option(argv, "--model"), "tool": tool["name"],
+               "system": option(argv, "--system-prompt"), "user": user, "schema": schema, "argv": argv,
+               "cwd": os.getcwd(), "api_key_seen": bool(os.environ.get("ANTHROPIC_API_KEY"))})
+    if os.environ.get("JOBSEARCH_TEST_MODEL_ERRORS"):
+        print(json.dumps({"type": "result", "is_error": True, "result": "fake claude error"}))
+        return 1
+    answer = fakes.answer_for(tool, user)
+    bad = int(os.environ.get("JOBSEARCH_TEST_CLAUDE_BAD_OUTPUT", "0"))
+    if bad and fakes.bump("claude_bad_output") <= bad and "scores" in answer:
+        answer["scores"] = dict.fromkeys(answer["scores"], 9)  # out of range: the engine's validation must reject it
+    usage = {"input_tokens": 100, "output_tokens": 20, "cache_creation_input_tokens": 10, "cache_read_input_tokens": 50}
+    print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "",
+                      "structured_output": answer, "usage": usage, "total_cost_usd": 0.001}))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -105,6 +105,7 @@ class Workspace:
     def env(self, today: str | None = None, extra: dict | None = None) -> dict:
         env = _clean_env({
             "PYTHONPATH": str(FAKES), "JOBSEARCH_TEST_FAKES": "1",
+            "PATH": f"{FAKES / 'bin'}{os.pathsep}{os.environ.get('PATH', '')}",  # the fake `claude` command shadows a real one
             "JOBSEARCH_TEST_LOG": str(self.path / "fake_calls.jsonl"),
             "JOBSEARCH_TEST_JOBS": str(self.jobs_file or JOBS_FIXTURE),
             "JOBSEARCH_TEST_STATE": str(self.path),
